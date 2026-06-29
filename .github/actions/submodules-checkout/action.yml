@@ -39,8 +39,3 @@ runs:
         ./submodules.sh ${{ github.event.pull_request.head.ref || github.ref_name }}
       shell: bash
 
-    - name: Show main readme
-      if: ${{ inputs.submodules-ssh-key }}
-      run: |
-        cat ./packages/sdk-components-animation/private-src/README.md || echo "No README found"
-      shell: bash

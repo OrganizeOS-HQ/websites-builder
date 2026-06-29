@@ -89,7 +89,6 @@ jobs:
       - name: Playwright init
         run: |
           pnpm playwright install
-        working-directory: packages/sdk-components-animation
 
       - name: Test
         run: |

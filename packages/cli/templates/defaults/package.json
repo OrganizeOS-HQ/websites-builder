@@ -15,7 +15,6 @@
     "@webstudio-is/react-sdk": "0.0.0-webstudio-version",
     "@webstudio-is/sdk": "0.0.0-webstudio-version",
     "@webstudio-is/sdk-components-react": "0.0.0-webstudio-version",
-    "@webstudio-is/sdk-components-animation": "0.0.0-webstudio-version",
     "@webstudio-is/sdk-components-react-radix": "0.0.0-webstudio-version",
     "@webstudio-is/sdk-components-react-remix": "0.0.0-webstudio-version",
     "@webstudio-is/wsauth": "0.0.0-webstudio-version",

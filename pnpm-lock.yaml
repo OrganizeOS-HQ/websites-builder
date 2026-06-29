@@ -292,9 +292,6 @@ importers:
       '@webstudio-is/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@webstudio-is/sdk-components-animation':
-        specifier: workspace:*
-        version: link:../../packages/sdk-components-animation
       '@webstudio-is/sdk-components-react':
         specifier: workspace:*
         version: link:../../packages/sdk-components-react
@@ -530,9 +527,6 @@ importers:
       '@webstudio-is/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@webstudio-is/sdk-components-animation':
-        specifier: workspace:*
-        version: link:../../packages/sdk-components-animation
       '@webstudio-is/sdk-components-react':
         specifier: workspace:*
         version: link:../../packages/sdk-components-react
@@ -600,9 +594,6 @@ importers:
       '@webstudio-is/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@webstudio-is/sdk-components-animation':
-        specifier: workspace:*
-        version: link:../../packages/sdk-components-animation
       '@webstudio-is/sdk-components-react':
         specifier: workspace:*
         version: link:../../packages/sdk-components-react
@@ -673,9 +664,6 @@ importers:
       '@webstudio-is/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@webstudio-is/sdk-components-animation':
-        specifier: workspace:*
-        version: link:../../packages/sdk-components-animation
       '@webstudio-is/sdk-components-react':
         specifier: workspace:*
         version: link:../../packages/sdk-components-react
@@ -740,9 +728,6 @@ importers:
       '@webstudio-is/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@webstudio-is/sdk-components-animation':
-        specifier: workspace:*
-        version: link:../../packages/sdk-components-animation
       '@webstudio-is/sdk-components-react':
         specifier: workspace:*
         version: link:../../packages/sdk-components-react
@@ -795,9 +780,6 @@ importers:
       '@webstudio-is/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@webstudio-is/sdk-components-animation':
-        specifier: workspace:*
-        version: link:../../packages/sdk-components-animation
       '@webstudio-is/sdk-components-react':
         specifier: workspace:*
         version: link:../../packages/sdk-components-react
@@ -853,9 +835,6 @@ importers:
       '@webstudio-is/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@webstudio-is/sdk-components-animation':
-        specifier: workspace:*
-        version: link:../../packages/sdk-components-animation
       '@webstudio-is/sdk-components-react':
         specifier: workspace:*
         version: link:../../packages/sdk-components-react
@@ -926,9 +905,6 @@ importers:
       '@webstudio-is/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@webstudio-is/sdk-components-animation':
-        specifier: workspace:*
-        version: link:../../packages/sdk-components-animation
       '@webstudio-is/sdk-components-react':
         specifier: workspace:*
         version: link:../../packages/sdk-components-react
@@ -1008,9 +984,6 @@ importers:
       '@webstudio-is/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@webstudio-is/sdk-components-animation':
-        specifier: workspace:*
-        version: link:../../packages/sdk-components-animation
       '@webstudio-is/sdk-components-react':
         specifier: workspace:*
         version: link:../../packages/sdk-components-react
@@ -1258,9 +1231,6 @@ importers:
       '@webstudio-is/sdk':
         specifier: workspace:*
         version: link:../sdk
-      '@webstudio-is/sdk-components-animation':
-        specifier: workspace:*
-        version: link:../sdk-components-animation
       '@webstudio-is/sdk-components-react':
         specifier: workspace:*
         version: link:../sdk-components-react
@@ -2119,85 +2089,6 @@ importers:
       '@webstudio-is/tsconfig':
         specifier: workspace:^
         version: link:../tsconfig
-
-  packages/sdk-components-animation:
-    dependencies:
-      '@webstudio-is/css-engine':
-        specifier: workspace:*
-        version: link:../css-engine
-      '@webstudio-is/icons':
-        specifier: workspace:*
-        version: link:../icons
-      '@webstudio-is/react-sdk':
-        specifier: workspace:*
-        version: link:../react-sdk
-      '@webstudio-is/sdk':
-        specifier: workspace:*
-        version: link:../sdk
-      change-case:
-        specifier: ^5.4.4
-        version: 5.4.4
-      nanostores:
-        specifier: ^0.11.3
-        version: 0.11.3
-      react-error-boundary:
-        specifier: ^5.0.0
-        version: 5.0.0(react@18.3.0-canary-14898b6a9-20240318)
-      shallow-equal:
-        specifier: ^3.1.0
-        version: 3.1.0
-    devDependencies:
-      '@types/react':
-        specifier: ^18.2.70
-        version: 18.2.79
-      '@types/react-dom':
-        specifier: ^18.2.25
-        version: 18.2.25
-      '@vitest/browser':
-        specifier: ^3.0.8
-        version: 3.1.2(msw@2.13.2(@types/node@22.13.10)(typescript@5.8.2))(playwright@1.50.1)(vite@6.3.4(@types/node@22.13.10)(jiti@2.4.2)(tsx@4.19.3))(vitest@3.1.2)
-      '@webstudio-is/css-data':
-        specifier: workspace:*
-        version: link:../css-data
-      '@webstudio-is/design-system':
-        specifier: workspace:*
-        version: link:../design-system
-      '@webstudio-is/generate-arg-types':
-        specifier: workspace:*
-        version: link:../generate-arg-types
-      '@webstudio-is/sdk-cli':
-        specifier: workspace:^
-        version: link:../sdk-cli
-      '@webstudio-is/sdk-components-react':
-        specifier: workspace:*
-        version: link:../sdk-components-react
-      '@webstudio-is/template':
-        specifier: workspace:*
-        version: link:../template
-      '@webstudio-is/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      fast-glob:
-        specifier: ^3.3.2
-        version: 3.3.2
-      playwright:
-        specifier: ^1.50.1
-        version: 1.50.1
-      react:
-        specifier: 18.3.0-canary-14898b6a9-20240318
-        version: 18.3.0-canary-14898b6a9-20240318
-      react-dom:
-        specifier: 18.3.0-canary-14898b6a9-20240318
-        version: 18.3.0-canary-14898b6a9-20240318(react@18.3.0-canary-14898b6a9-20240318)
-      type-fest:
-        specifier: ^4.37.0
-        version: 4.37.0
-      vitest:
-        specifier: ^3.1.2
-        version: 3.1.2(@types/debug@4.1.12)(@types/node@22.13.10)(@vitest/browser@3.1.2)(jiti@2.4.2)(jsdom@20.0.3)(msw@2.13.2(@types/node@22.13.10)(typescript@5.8.2))(tsx@4.19.3)
-      zod:
-        specifier: ^3.24.2
-        version: 3.24.2
 
   packages/sdk-components-react:
     dependencies:
@@ -9979,18 +9870,6 @@ packages:
       utf-8-validate:
         optional: true
 
-  ws@8.18.1:
-    resolution: {integrity: sha512-RKW2aJZMXeMxVpnZ6bck+RswznaxmzdULiBr6KY7XkTnW8uvt0iT9H5DkHUChXrc+uurzwa0rVI16n/Xzjdz1w==}
-    engines: {node: '>=10.0.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: '>=5.0.2'
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
-
   ws@8.20.0:
     resolution: {integrity: sha512-sAt8BhgNbzCtgGbt2OxmpuryO63ZoDk/sqaB/znQm94T4fCEsy/yV+7CdC1kJhOU9lboAEU7R3kquuycDoibVA==}
     engines: {node: '>=10.0.0'}
@@ -13539,6 +13418,7 @@ snapshots:
   '@testing-library/user-event@14.6.1(@testing-library/dom@10.4.0)':
     dependencies:
       '@testing-library/dom': 10.4.0
+    optional: true
 
   '@tootallnate/once@2.0.0':
     optional: true
@@ -13903,11 +13783,11 @@ snapshots:
       '@testing-library/user-event': 14.6.1(@testing-library/dom@10.4.0)
       '@vitest/mocker': 3.1.2(msw@2.13.2(@types/node@22.13.10)(typescript@5.8.2))(vite@6.3.4(@types/node@22.13.10)(jiti@2.4.2)(tsx@4.19.3))
       '@vitest/utils': 3.1.2
-      magic-string: 0.30.17
+      magic-string: 0.30.21
       sirv: 3.0.1
       tinyrainbow: 2.0.0
       vitest: 3.1.2(@types/debug@4.1.12)(@types/node@22.13.10)(@vitest/browser@3.1.2)(jiti@2.4.2)(jsdom@20.0.3)(msw@2.13.2(@types/node@22.13.10)(typescript@5.8.2))(tsx@4.19.3)
-      ws: 8.18.1
+      ws: 8.20.0
     optionalDependencies:
       playwright: 1.50.1
     transitivePeerDependencies:
@@ -13915,6 +13795,7 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
+    optional: true
 
   '@vitest/coverage-v8@3.1.2(@vitest/browser@3.1.2)(vitest@3.1.2)':
     dependencies:
@@ -18390,8 +18271,6 @@ snapshots:
   ws@7.5.10: {}
 
   ws@8.18.0: {}
-
-  ws@8.18.1: {}
 
   ws@8.20.0:
     optional: true

@@ -1,7 +1,6 @@
 import { describe, expect, test, beforeEach } from "vitest";
 import { coreMetas, elementComponent } from "@webstudio-is/sdk";
 import * as baseMetas from "@webstudio-is/sdk-components-react/metas";
-import * as animationMetas from "@webstudio-is/sdk-components-animation/metas";
 import { createDefaultPages } from "@webstudio-is/project-build";
 import { $, renderData } from "@webstudio-is/template";
 import { $registeredComponentMetas } from "~/shared/nano-states";
@@ -16,9 +15,7 @@ const { canWrapInstance } = __testing__;
 
 registerContainers();
 
-const metas = new Map(
-  Object.entries({ ...coreMetas, ...baseMetas, ...animationMetas })
-);
+const metas = new Map(Object.entries({ ...coreMetas, ...baseMetas }));
 
 beforeEach(() => {
   $registeredComponentMetas.set(metas);
@@ -280,98 +277,6 @@ describe("canWrapInstance edge cases", () => {
       ["box", "body"],
       "body",
       "ws:collection",
-      undefined,
-      $instances.get(),
-      $props.get(),
-      $registeredComponentMetas.get()
-    );
-    expect(result).toBe(true);
-  });
-
-  test("should allow wrapping with AnimateChildren", () => {
-    $instances.set(
-      renderData(
-        <$.Body ws:id="body">
-          <$.Box ws:id="box"></$.Box>
-        </$.Body>
-      ).instances
-    );
-    selectInstance(["box", "body"]);
-
-    const result = canWrapInstance(
-      "box",
-      ["box", "body"],
-      "body",
-      "@webstudio-is/sdk-components-animation:AnimateChildren",
-      undefined,
-      $instances.get(),
-      $props.get(),
-      $registeredComponentMetas.get()
-    );
-    expect(result).toBe(true);
-  });
-
-  test("should allow wrapping with AnimateText", () => {
-    $instances.set(
-      renderData(
-        <$.Body ws:id="body">
-          <$.Box ws:id="box"></$.Box>
-        </$.Body>
-      ).instances
-    );
-    selectInstance(["box", "body"]);
-
-    const result = canWrapInstance(
-      "box",
-      ["box", "body"],
-      "body",
-      "@webstudio-is/sdk-components-animation:AnimateText",
-      undefined,
-      $instances.get(),
-      $props.get(),
-      $registeredComponentMetas.get()
-    );
-    expect(result).toBe(true);
-  });
-
-  test("should allow wrapping with StaggerAnimation", () => {
-    $instances.set(
-      renderData(
-        <$.Body ws:id="body">
-          <$.Box ws:id="box"></$.Box>
-        </$.Body>
-      ).instances
-    );
-    selectInstance(["box", "body"]);
-
-    const result = canWrapInstance(
-      "box",
-      ["box", "body"],
-      "body",
-      "@webstudio-is/sdk-components-animation:StaggerAnimation",
-      undefined,
-      $instances.get(),
-      $props.get(),
-      $registeredComponentMetas.get()
-    );
-    expect(result).toBe(true);
-  });
-
-  test("should allow wrapping with VideoAnimation", () => {
-    $instances.set(
-      renderData(
-        <$.Body ws:id="body">
-          <$.Box ws:id="box"></$.Box>
-        </$.Body>
-      ).instances
-    );
-    selectInstance(["box", "body"]);
-
-    const result = canWrapInstance(
-      "box",
-      ["box", "body"],
-      "body",
-      "@webstudio-is/sdk-components-animation:VideoAnimation",
       undefined,
       $instances.get(),
       $props.get(),

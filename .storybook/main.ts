@@ -1,20 +1,6 @@
 import * as path from "node:path";
-import { existsSync, readdirSync } from "node:fs";
 import { defaultClientConditions } from "vite";
 import type { StorybookConfig } from "@storybook/react-vite";
-
-const isFolderEmpty = (folderPath: string) => {
-  if (!existsSync(folderPath)) {
-    return true; // Folder does not exist
-  }
-  const contents = readdirSync(folderPath);
-
-  return contents.length === 0;
-};
-
-const hasPrivateFolders = !isFolderEmpty(
-  path.join(__dirname, "../../packages/sdk-components-animation/private-src")
-);
 
 const visualTestingStories: StorybookConfig["stories"] = [
   {
@@ -59,11 +45,6 @@ export default {
           titlePrefix: "SDK components React Radix",
           files: "**/*.stories.tsx",
         },
-        {
-          directory: "../packages/sdk-components-animation",
-          titlePrefix: "SDK components animation",
-          files: "**/*.stories.tsx",
-        },
       ],
   framework: {
     name: "@storybook/react-vite",
@@ -90,9 +71,7 @@ export default {
       },
       resolve: {
         ...config.resolve,
-        conditions: hasPrivateFolders
-          ? ["webstudio-private", "webstudio", ...defaultClientConditions]
-          : ["webstudio", ...defaultClientConditions],
+        conditions: ["webstudio", ...defaultClientConditions],
 
         alias: [
           {

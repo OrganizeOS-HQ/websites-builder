@@ -2,7 +2,6 @@ import { join } from "node:path";
 import { readFile, rm } from "node:fs/promises";
 import { isPathnamePattern, type WsComponentMeta } from "@webstudio-is/sdk";
 import * as baseComponentMetas from "@webstudio-is/sdk-components-react/metas";
-import * as animationComponentMetas from "@webstudio-is/sdk-components-animation/metas";
 import * as radixComponentMetas from "@webstudio-is/sdk-components-react-radix/metas";
 import type { Framework } from "./framework";
 
@@ -34,7 +33,6 @@ export const createFramework = async (): Promise<Framework> => {
 
   const base = "@webstudio-is/sdk-components-react/components";
   const reactRadix = "@webstudio-is/sdk-components-react-radix";
-  const animation = "@webstudio-is/sdk-components-animation";
   const components: Record<string, string> = {};
   const metas: Record<string, WsComponentMeta> = {};
   for (const [name, meta] of Object.entries(baseComponentMetas)) {
@@ -44,10 +42,6 @@ export const createFramework = async (): Promise<Framework> => {
   for (const [name, meta] of Object.entries(radixComponentMetas)) {
     components[`${reactRadix}:${name}`] = `${reactRadix}:${name}`;
     metas[`${reactRadix}:${name}`] = meta;
-  }
-  for (const [name, meta] of Object.entries(animationComponentMetas)) {
-    components[`${animation}:${name}`] = `${animation}:${name}`;
-    metas[`${animation}:${name}`] = meta;
   }
 
   return {
