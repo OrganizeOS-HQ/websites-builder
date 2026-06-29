@@ -328,12 +328,38 @@ describe("hasProjectPermit — workspace downgrade guard (msw)", () => {
       }),
       db.get("WorkspaceProjectAuthorization", () =>
         json([{ relation: "editors" }])
-      )
+      ),
+      // When the gate would deny, it checks whether the owner is a synthetic
+      // service account. A normal owner is not, so the denial stands.
+      db.get("User", () => json({ provider: "google" }))
     );
     const ctx = makeUserCtx("user-2", 1);
 
     const allowed = await hasProjectPermit({ projectId, permit: "edit" }, ctx);
     expect(allowed).toBe(false);
+  });
+
+  test("allows member of an org-owned (service owner) workspace despite maxWorkspaces <= 1", async () => {
+    const projectId = uid();
+    server.use(
+      db.get("Project", ({ request }) => {
+        const url = new URL(request.url);
+        if (url.searchParams.has("userId")) {
+          return json(null);
+        }
+        return json({ id: projectId, userId: "svc-owner" });
+      }),
+      db.get("WorkspaceProjectAuthorization", () =>
+        json([{ relation: "editors" }])
+      ),
+      // Synthetic OrganizeOS service owner: exempt from the downgrade gate so
+      // human member-admins are never silently locked out.
+      db.get("User", () => json({ provider: "organizeos-service" }))
+    );
+    const ctx = makeUserCtx("member-1", 1);
+
+    const allowed = await hasProjectPermit({ projectId, permit: "edit" }, ctx);
+    expect(allowed).toBe(true);
   });
 
   test("allows workspace member when owner plan has maxWorkspaces > 1", async () => {

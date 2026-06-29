@@ -64,6 +64,60 @@ export const getProjectOwnerId = async (
   return await getCachedProjectOwnerId(context, projectId);
 };
 
+// Synthetic owner of an OrganizeOS org-owned workspace. Such an owner is not a
+// billing entity, so the seat-plan downgrade gate must not apply to it.
+const ORGANIZEOS_SERVICE_PROVIDER = "organizeos-service";
+
+const serviceOwnedProjectCache = new WeakMap<
+  object,
+  Map<string, Promise<boolean>>
+>();
+
+/**
+ * True when the project's owner is a synthetic OrganizeOS service account
+ * (User.provider === 'organizeos-service'). Org-owned workspaces are always
+ * licensed: their human member-admins must never be locked out by the owner's
+ * seat plan, because the synthetic owner has no real subscription.
+ */
+export const isServiceOwnedProject = async (
+  projectId: string,
+  context: ProjectOwnerContext
+): Promise<boolean> => {
+  let cache = serviceOwnedProjectCache.get(context);
+  if (cache === undefined) {
+    cache = new Map();
+    serviceOwnedProjectCache.set(context, cache);
+  }
+
+  let promise = cache.get(projectId);
+  if (promise !== undefined) {
+    return await promise;
+  }
+
+  promise = (async () => {
+    const ownerId = await getProjectOwnerId(projectId, context);
+    const ownerResult = await context.postgrest.client
+      .from("User")
+      .select("provider")
+      .eq("id", ownerId)
+      .single();
+
+    if (ownerResult.error) {
+      throw ownerResult.error;
+    }
+
+    return ownerResult.data.provider === ORGANIZEOS_SERVICE_PROVIDER;
+  })();
+
+  promise.catch(() => {
+    if (cache.get(projectId) === promise) {
+      cache.delete(projectId);
+    }
+  });
+  cache.set(projectId, promise);
+  return await promise;
+};
+
 export const getPlanFeaturesByOwnerId = async (
   ownerId: string,
   context: OwnerPlanContext

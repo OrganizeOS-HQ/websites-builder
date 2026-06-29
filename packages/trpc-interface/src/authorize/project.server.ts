@@ -1,7 +1,10 @@
 import type { AppContext } from "../context/context.server";
 import type { Role } from "./role";
 import memoize from "memoize";
-import { getProjectPlanFeatures } from "../context/project-plan.server";
+import {
+  getProjectPlanFeatures,
+  isServiceOwnedProject,
+} from "../context/project-plan.server";
 
 type Relation = Role;
 
@@ -276,6 +279,13 @@ export const hasProjectPermit = async (
       // User is a workspace member — verify the project owner's plan.
       const ownerPlan = await getProjectPlanFeatures(props.projectId, context);
       if (ownerPlan.maxWorkspaces <= 1) {
+        // Org-owned (synthetic service owner) workspaces are exempt from the
+        // seat-plan downgrade gate: the synthetic owner has no subscription,
+        // so applying the gate would silently lock out every human
+        // member-admin. Only checked when the gate would otherwise deny.
+        if (await isServiceOwnedProject(props.projectId, context)) {
+          return true;
+        }
         return false;
       }
     }
