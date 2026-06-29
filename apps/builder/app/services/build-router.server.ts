@@ -165,6 +165,17 @@ export const loadBuilderDataByProjectId = async (
   projectId: string,
   ctx: AppContext
 ) => {
+  // Builder data (the full instance/props/styles/pages tree, including
+  // unpublished drafts) must never be readable by a service-token caller.
+  // checkProjectPermit short-circuits `view` to true for any service caller,
+  // so without this guard the shared service token would read any project's
+  // builder data by id. No legitimate flow loads builder data as a service:
+  // the browser builder uses a user session, and the collab relay uses
+  // getPatchState (token-scoped). Mirrors assertBrowserPatchContext.
+  if (ctx.authorization.type === "service") {
+    throw new AuthorizationError("Service calls are not allowed");
+  }
+
   const project = await loadById(projectId, ctx);
   if (project === null) {
     throw new Error(`Project "${projectId}" not found`);

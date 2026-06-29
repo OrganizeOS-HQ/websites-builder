@@ -312,6 +312,47 @@ describe("checkProjectPermit — service auth", () => {
 });
 
 // ---------------------------------------------------------------------------
+// checkProjectPermit — templateIds allowlist removed (regression)
+//
+// A hard-coded list of project UUIDs used to return view=true for ANY caller
+// before any token/user/workspace check (a zero-auth public-read bypass). The
+// list was deleted; these assert no formerly-listed id gets special treatment.
+// ---------------------------------------------------------------------------
+
+describe("checkProjectPermit — templateIds allowlist removed (regression)", () => {
+  // A pair of ids that were previously hard-coded into the view allowlist.
+  const formerTemplateIds = [
+    "5e086cf4-4293-471c-8eab-ddca8b5cd4db",
+    "c236999d-be6b-43fb-9edc-78a2ba59e56d",
+  ];
+
+  test("former template id is not viewable via a non-matching token", async () => {
+    server.use(db.get("AuthorizationToken", () => json(null)));
+    const allowed = await checkProjectPermit({
+      projectId: formerTemplateIds[0],
+      permit: "view",
+      authInfo: { type: "token", authToken: "no-such-token" },
+      postgrestClient: testContext.postgrest.client,
+    });
+    expect(allowed).toBe(false);
+  });
+
+  test("former template id is denied for a user with no access", async () => {
+    server.use(
+      db.get("Project", () => json(null)),
+      db.get("WorkspaceProjectAuthorization", () => json([]))
+    );
+    const allowed = await checkProjectPermit({
+      projectId: formerTemplateIds[1],
+      permit: "view",
+      authInfo: { type: "user", userId: "user-no-access" },
+      postgrestClient: testContext.postgrest.client,
+    });
+    expect(allowed).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // hasProjectPermit — workspace downgrade guard
 // ---------------------------------------------------------------------------
 
