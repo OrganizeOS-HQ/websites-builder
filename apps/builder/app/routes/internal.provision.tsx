@@ -64,6 +64,11 @@ const provisionInput = z.object({
   organizationId: z.string().min(1),
   orgName: z.string().min(1),
   adminEmails: z.array(z.string().email()).default([]),
+  // Optional /v1 data-binding seed: the org's read token + API base URL. When
+  // both are present the project is seeded with the OrganizeOS Resource presets
+  // (Phase 4d). Omitted -> the workspace is provisioned without presets.
+  readToken: z.string().min(1).optional(),
+  apiBaseUrl: z.string().url().optional(),
 });
 
 const deprovisionInput = z.object({
@@ -111,6 +116,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     organizationId: parsed.data.organizationId,
     orgName: parsed.data.orgName,
     adminEmails: parsed.data.adminEmails,
+    siteData:
+      parsed.data.readToken !== undefined &&
+      parsed.data.apiBaseUrl !== undefined
+        ? {
+            readToken: parsed.data.readToken,
+            apiBaseUrl: parsed.data.apiBaseUrl,
+          }
+        : undefined,
   });
   return json(result);
 };

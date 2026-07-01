@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { AppContext } from "@webstudio-is/trpc-interface/index.server";
 import { createBuild } from "@webstudio-is/project-build/index.server";
 import { resolveOrCreateUserByEmail } from "./user.server";
+import { seedProjectResourcePresets } from "./resource-presets.server";
 
 /**
  * OrganizeOS multi-tenant provisioning (Websites 2.0, Phase 4b).
@@ -75,6 +76,11 @@ export type ProvisionResult = {
  * is resolved to a Webstudio User (creating a placeholder account if the admin
  * has not logged in yet), so membership can be granted before first login and
  * converges when the admin later signs in with the same email.
+ *
+ * When `siteData` is supplied (the org's /v1 read token + API base URL), the
+ * project is seeded with the OrganizeOS data Resource presets (Phase 4d). This
+ * is idempotent, so it also re-syncs the presets (e.g. a rotated token) on
+ * re-provision.
  */
 export const provisionOrgWorkspace = async (
   context: AppContext,
@@ -82,7 +88,13 @@ export const provisionOrgWorkspace = async (
     organizationId,
     orgName,
     adminEmails,
-  }: { organizationId: string; orgName: string; adminEmails: string[] }
+    siteData,
+  }: {
+    organizationId: string;
+    orgName: string;
+    adminEmails: string[];
+    siteData?: { readToken: string; apiBaseUrl: string };
+  }
 ): Promise<ProvisionResult> => {
   const client = context.postgrest.client;
 
@@ -149,6 +161,15 @@ export const provisionOrgWorkspace = async (
     if (attachOwner.error) {
       throw attachOwner.error;
     }
+  }
+
+  // 3b. Seed the OrganizeOS /v1 data Resource presets (idempotent re-sync).
+  if (siteData !== undefined) {
+    await seedProjectResourcePresets(context, {
+      projectId,
+      apiBaseUrl: siteData.apiBaseUrl,
+      readToken: siteData.readToken,
+    });
   }
 
   // 4. Human admins as non-owner members (reactivate on re-sync via removedAt).
