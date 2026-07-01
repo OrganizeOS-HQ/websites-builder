@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { AppContext } from "@webstudio-is/trpc-interface/index.server";
 import { createBuild } from "@webstudio-is/project-build/index.server";
+import { resolveOrCreateUserByEmail } from "./user.server";
 
 /**
  * OrganizeOS multi-tenant provisioning (Websites 2.0, Phase 4b).
@@ -25,7 +26,7 @@ const ORG_NAMESPACE = "7b5a9e44-2c4d-5f1a-9c3e-0a1b2c3d4e5f";
 
 const SERVICE_PROVIDER = "organizeos-service";
 
-/** RFC 4122 v5 (SHA-1, namespaced) UUID — deterministic per (namespace, name). */
+/** RFC 4122 v5 (SHA-1, namespaced) UUID, deterministic per (namespace, name). */
 const uuidV5 = (name: string, namespace: string): string => {
   const namespaceBytes = Buffer.from(namespace.replace(/-/g, ""), "hex");
   const bytes = createHash("sha1")
@@ -68,17 +69,20 @@ export type ProvisionResult = {
 
 /**
  * Idempotently provision (or re-sync) an org's Workspace + Project + admin
- * membership. `adminUserIds` are the Webstudio User ids of the org's human
- * admins (the caller resolves these from the ledger's active membership — the
- * provisioning route must NOT trust a client-supplied admin list).
+ * membership. `adminEmails` are the email addresses of the org's human admins
+ * (the caller resolves these from the ledger's active membership; the
+ * provisioning route must NOT trust a client-supplied admin list). Each email
+ * is resolved to a Webstudio User (creating a placeholder account if the admin
+ * has not logged in yet), so membership can be granted before first login and
+ * converges when the admin later signs in with the same email.
  */
 export const provisionOrgWorkspace = async (
   context: AppContext,
   {
     organizationId,
     orgName,
-    adminUserIds,
-  }: { organizationId: string; orgName: string; adminUserIds: string[] }
+    adminEmails,
+  }: { organizationId: string; orgName: string; adminEmails: string[] }
 ): Promise<ProvisionResult> => {
   const client = context.postgrest.client;
 
@@ -148,7 +152,16 @@ export const provisionOrgWorkspace = async (
   }
 
   // 4. Human admins as non-owner members (reactivate on re-sync via removedAt).
-  if (adminUserIds.length > 0) {
+  //    Resolve each email to a Webstudio User id first, creating a placeholder
+  //    account for admins who have not logged in yet.
+  if (adminEmails.length > 0) {
+    const adminUserIds = await Promise.all(
+      adminEmails.map(async (email) => {
+        const user = await resolveOrCreateUserByEmail(context, email);
+        return user.id;
+      })
+    );
+
     const memberResult = await client.from("WorkspaceMember").upsert(
       adminUserIds.map((userId) => ({
         workspaceId,

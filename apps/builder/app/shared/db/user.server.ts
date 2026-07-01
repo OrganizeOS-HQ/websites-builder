@@ -121,6 +121,27 @@ const genericCreateAccount = async (
   return formatUser(newUser.data);
 };
 
+/**
+ * Resolve a human admin's Webstudio User by email, creating a minimal
+ * placeholder account (plus its default workspace) if none exists yet. When the
+ * admin later signs in via OAuth or dev login, genericCreateAccount matches the
+ * same email and returns this row, so provisioning-time membership and
+ * login-time identity converge. Used by org provisioning to turn org admin
+ * emails into Webstudio User ids without requiring the admin to have logged in
+ * first.
+ */
+export const resolveOrCreateUserByEmail = async (
+  context: AppContext,
+  email: string
+): Promise<User> => {
+  return genericCreateAccount(context, {
+    email,
+    username: email.split("@")[0] ?? "member",
+    image: "",
+    provider: "organizeos",
+  });
+};
+
 export const createOrLoginWithOAuth = async (
   context: AppContext,
   profile: GoogleProfile | GitHubProfile

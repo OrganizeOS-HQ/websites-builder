@@ -52,17 +52,18 @@ const isAuthorizedInternalCall = (request: Request): boolean => {
   return constantTimeEqual(header, token);
 };
 
-// organizationId ONLY (+ a display name, the org's admin user ids, and the
+// organizationId ONLY (+ a display name, the org's admin emails, and the
 // action). No projectId/workspaceId is ever accepted from the caller: every id
 // is derived server-side from organizationId, so a caller holding the token
-// cannot target another org's project. adminUserIds are the org's active
-// admins as resolved by the OrganizeOS ledger (not asserted by an untrusted
-// client). Provisioning is idempotent, so "provision" doubles as re-sync.
+// cannot target another org's project. adminEmails are the org's active admins
+// as resolved by the OrganizeOS ledger (not asserted by an untrusted client);
+// each is resolved to (or provisioned as) a Webstudio User server-side.
+// Provisioning is idempotent, so "provision" doubles as re-sync.
 const provisionInput = z.object({
   action: z.literal("provision").default("provision"),
   organizationId: z.string().min(1),
   orgName: z.string().min(1),
-  adminUserIds: z.array(z.string()).default([]),
+  adminEmails: z.array(z.string().email()).default([]),
 });
 
 const deprovisionInput = z.object({
@@ -109,7 +110,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const result = await provisionOrgWorkspace(context, {
     organizationId: parsed.data.organizationId,
     orgName: parsed.data.orgName,
-    adminUserIds: parsed.data.adminUserIds,
+    adminEmails: parsed.data.adminEmails,
   });
   return json(result);
 };
