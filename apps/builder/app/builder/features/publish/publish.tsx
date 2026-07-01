@@ -1202,7 +1202,7 @@ export const PublishButton = ({ projectId }: PublishProps) => {
     >
       <Tooltip
         side="bottom"
-        content={tooltipContent ?? "Publish to Webstudio Cloud"}
+        content={tooltipContent ?? "Publish your site"}
         sideOffset={Number.parseFloat(rawTheme.spacing[5])}
       >
         <PopoverTrigger asChild>
