@@ -6,9 +6,10 @@ This document is the fork's source of truth for: the **AGPL §13 license posture
 
 ## 1. License posture (AGPL-3.0 §13) — POSTURE A
 
-Webstudio core is **AGPL-3.0-or-later**. Serving a *modified* builder to org admins over the network triggers **§13**: those users must be offered the source of our modifications.
+Webstudio core is **AGPL-3.0-or-later**. Serving a _modified_ builder to org admins over the network triggers **§13**: those users must be offered the source of our modifications.
 
 **Our posture (A): accept the copyleft and keep this fork public.**
+
 - This fork repository is **public**. It must be public **before any non-employee org admin uses the builder**.
 - The builder UI carries a persistent **source-offer link** in its chrome, pointing at the deployed commit of this public fork (added with the branding changes).
 - We do **not** treat the builder as "internal only" — that is a false safe-harbor; §13 attaches the moment an external admin uses the modified builder.
@@ -18,6 +19,7 @@ Webstudio core is **AGPL-3.0-or-later**. Serving a *modified* builder to org adm
 ## 2. Proprietary code removed (mandatory)
 
 The upstream `@webstudio-is/sdk-components-animation` package is **EULA-proprietary** (not AGPL) and was a hard dependency of the builder, the CLI, and every published-site template. It has been **physically removed** from this fork:
+
 - Dependency stripped from all `package.json` files (builder, CLI, CLI templates, fixtures).
 - Imports + registrations removed from `apps/builder/app/canvas/canvas.tsx`, `apps/builder/app/shared/sync/patch/patch-auth.server.ts`, and `packages/cli/src/framework-{react-router,remix,vike-ssg}.ts`.
 - The `packages/sdk-components-animation` directory and the `.gitmodules` pointer to the proprietary repo are deleted.
@@ -55,9 +57,9 @@ This is enabled **purely via the `PLANS` env var** (a JSON array of plan configs
       "maxProjectsAllowedPerUser": 1000000,
       "maxAssetsPerProject": 1000000,
       "seatsIncluded": 1000000,
-      "maxSeatsPerWorkspace": 1000000
-    }
-  }
+      "maxSeatsPerWorkspace": 1000000,
+    },
+  },
 ]
 ```
 
