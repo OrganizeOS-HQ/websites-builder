@@ -21,6 +21,11 @@ const environment = z.object({
   TRPC_SERVER_URL: z.string().url().optional(),
   TRPC_SERVER_API_TOKEN: z.string().optional(),
 
+  // OrganizeOS internal provisioning routes (server-to-server only). A
+  // dedicated token, distinct from TRPC_SERVER_API_TOKEN, so it cannot reach
+  // the collab-relay/service paths that grant broad project access.
+  ORGANIZEOS_PROVISION_TOKEN: z.string().optional(),
+
   PORT: z
     .string()
     .optional()
@@ -92,6 +97,7 @@ const rawEnv = {
   DEPLOYMENT_URL: process.env.DEPLOYMENT_URL,
   TRPC_SERVER_URL: process.env.TRPC_SERVER_URL,
   TRPC_SERVER_API_TOKEN: process.env.TRPC_SERVER_API_TOKEN,
+  ORGANIZEOS_PROVISION_TOKEN: process.env.ORGANIZEOS_PROVISION_TOKEN,
   PORT: process.env.PORT,
   MAX_UPLOAD_SIZE: process.env.MAX_UPLOAD_SIZE,
   S3_ENDPOINT: process.env.S3_ENDPOINT,

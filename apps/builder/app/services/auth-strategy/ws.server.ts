@@ -19,9 +19,17 @@ const asyncLocalStorage = new AsyncLocalStorage<
 
 // remix-auth-oauth2 logs OAuth state, PKCE verifier, and full callback URLs.
 // Match both the exact namespace and any prefixed namespace enabled by DEBUG=*.
-createDebugRaw.enable(
-  `${createDebugRaw.disable()},-OAuth2Strategy,-*OAuth2Strategy*`
-);
+// Guard so this runs once per process: under the Vite SSR module runner this
+// module can be re-evaluated, and re-running enable(disable() + ...) feeds
+// debug's converted wildcard patterns back through conversion, producing an
+// invalid regex ("Nothing to repeat").
+const debugGuard = globalThis as { __wsDebugConfigured?: boolean };
+if (debugGuard.__wsDebugConfigured !== true) {
+  debugGuard.__wsDebugConfigured = true;
+  createDebugRaw.enable(
+    `${createDebugRaw.disable()},-OAuth2Strategy,-*OAuth2Strategy*`
+  );
+}
 
 /**
  * The main issue with OAuth2Strategy is that it forces us to define authorizationEndpoint, tokenEndpoint, and redirectURI
