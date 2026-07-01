@@ -1,8 +1,20 @@
 import { describe, expect, test, vi } from "vitest";
 import { createPublishedProjectBundleFixture } from "@webstudio-is/protocol/fixtures";
-import { __testing__ } from "./build-router.server";
+import { __testing__, loadBuilderDataByProjectId } from "./build-router.server";
 
 const { createImportProjectBundleHandler } = __testing__;
+
+describe("loadBuilderDataByProjectId service-auth guard", () => {
+  test("rejects a service-token caller before loading any data", async () => {
+    // checkProjectPermit short-circuits `view` to true for service auth, so the
+    // shared service token must not be able to read builder data by id. The
+    // guard runs first, so it throws without touching the database.
+    const ctx = { authorization: { type: "service" } } as never;
+    await expect(
+      loadBuilderDataByProjectId("any-project-id", ctx)
+    ).rejects.toThrow("Service calls are not allowed");
+  });
+});
 
 describe("build router project bundle import", () => {
   test("imports staged project bundle data and removes the upload", async () => {
