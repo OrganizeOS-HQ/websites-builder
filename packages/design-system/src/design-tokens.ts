@@ -371,11 +371,11 @@ export const borderRadius = {
 export const color = {
   white: "#ffffff",
   black: "#000000",
-  backgroundPanel: "#fff",
-  backgroundPrimary: "#096cff",
+  backgroundPanel: "#faf9f5",
+  backgroundPrimary: "#23a997",
   backgroundHover: "#efefef",
-  backgroundActive: "#096cff",
-  backgroundMenu: "#fff",
+  backgroundActive: "#23a997",
+  backgroundMenu: "#faf9f5",
   backgroundControls: "#f5f5f5",
   backgroundAssetcardHover: "#e6e8eb",
   backgroundNeutralMain: "#d7dbdf",
@@ -413,13 +413,13 @@ export const color = {
   backgroundSpacingTopBottom: "#f8f8f8",
   backgroundSpacingLeftRight: "#f1f3f5",
   backgroundSpacingHover: "#e3e3e3",
-  backgroundStyleSourceSelected: "#096cff",
+  backgroundStyleSourceSelected: "#23a997",
   backgroundStyleSourceTag: "#d54113",
   backgroundStyleSourceState: "#00894a",
   backgroundStyleSourceNeutral: "#687076",
   backgroundStyleSourceDisabled: "#9da2a6",
   backgroundStyleSourceGradientSelected:
-    "linear-gradient(90deg, #096cff00 0%, #096cff 31.87%)",
+    "linear-gradient(90deg, #23a99700 0%, #23a997 31.87%)",
   backgroundStyleSourceGradientTag:
     "linear-gradient(90deg, #d5411300 0%, #d54113 31.87%)",
   backgroundStyleSourceGradientUnselected:
@@ -428,13 +428,13 @@ export const color = {
   backgroundCanvas: "#eee",
   backgroundTopbar: "#2d2d2d",
   backgroundGradientPrimary:
-    "linear-gradient(135deg, #1774ff 0%, #bd2fdb 100%)",
+    "linear-gradient(135deg, #23a997 0%, #178577 100%)",
   backgroundGradientVertical:
-    "linear-gradient(180deg, #096cff 0%, #096cff 0.01%, #bd2fdb 100%)",
+    "linear-gradient(180deg, #23a997 0%, #23a997 0.01%, #178577 100%)",
   backgroundGradientHorizontal:
-    "linear-gradient(90deg, #4a4efa 0%, #bd2fdb 100%)",
+    "linear-gradient(90deg, #23a997 0%, #178577 100%)",
   backgroundGradientHorizontalReverse:
-    "linear-gradient(90deg, #bd2fdb 0%, #4a4efa 100%)",
+    "linear-gradient(90deg, #178577 0%, #23a997 100%)",
   backgroundMenuHint: "#efefef",
   backgroundTopbarHover: "#383838",
   backgroundWorkspace: "#a9a9a9",
