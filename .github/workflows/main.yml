@@ -53,4 +53,7 @@ jobs:
         run: pnpm -r test
 
       - name: Typecheck
-        run: pnpm -r typecheck
+        # Exclude fixtures (generated example projects): their generated code
+        # still imports the removed proprietary animation package. The build
+        # already excludes them the same way (pnpm -r --filter='!./fixtures/*').
+        run: pnpm -r --filter='!./fixtures/*' typecheck
