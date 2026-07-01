@@ -87,33 +87,29 @@ export const provisionOrgWorkspace = async (
   const projectId = deriveProjectId(organizationId);
 
   // 1. Synthetic service owner (provider marks it as org-owned + always-licensed).
-  const userResult = await client
-    .from("User")
-    .upsert(
-      {
-        id: serviceUserId,
-        email: deriveSyntheticEmail(organizationId),
-        provider: SERVICE_PROVIDER,
-      },
-      { onConflict: "id", ignoreDuplicates: true }
-    );
+  const userResult = await client.from("User").upsert(
+    {
+      id: serviceUserId,
+      email: deriveSyntheticEmail(organizationId),
+      provider: SERVICE_PROVIDER,
+    },
+    { onConflict: "id", ignoreDuplicates: true }
+  );
   if (userResult.error) {
     throw userResult.error;
   }
 
   // 2. Workspace owned by the synthetic account. isDefault=true is safe: the
   //    synthetic account owns exactly one workspace.
-  const workspaceResult = await client
-    .from("Workspace")
-    .upsert(
-      {
-        id: workspaceId,
-        name: orgName,
-        isDefault: true,
-        userId: serviceUserId,
-      },
-      { onConflict: "id", ignoreDuplicates: true }
-    );
+  const workspaceResult = await client.from("Workspace").upsert(
+    {
+      id: workspaceId,
+      name: orgName,
+      isDefault: true,
+      userId: serviceUserId,
+    },
+    { onConflict: "id", ignoreDuplicates: true }
+  );
   if (workspaceResult.error) {
     throw workspaceResult.error;
   }

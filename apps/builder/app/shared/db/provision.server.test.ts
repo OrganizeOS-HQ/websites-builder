@@ -38,9 +38,7 @@ describe("provision id derivation", () => {
   });
 
   test("synthetic email + project domain derivations", () => {
-    expect(deriveSyntheticEmail("ABC")).toBe(
-      "org+ABC@svc.organizeos.internal"
-    );
+    expect(deriveSyntheticEmail("ABC")).toBe("org+ABC@svc.organizeos.internal");
     expect(deriveProjectDomain("Org_X 1")).toBe("org-org-x-1");
   });
 });
