@@ -5,6 +5,7 @@ export const AUTH_PROVIDERS = {
   LOGIN_DEV: "login_dev",
   LOGIN_GITHUB: "login_github",
   LOGIN_GOOGLE: "login_google",
+  LOGIN_ORGANIZEOS: "organizeos",
 } as const;
 
 export const LOGIN_ERROR_MESSAGES = {
@@ -13,6 +14,8 @@ export const LOGIN_ERROR_MESSAGES = {
     "There has been an issue logging you in with Github",
   [AUTH_PROVIDERS.LOGIN_GOOGLE]:
     "There has been an issue logging you in with Google",
+  [AUTH_PROVIDERS.LOGIN_ORGANIZEOS]:
+    "There has been an issue signing you in from OrganizeOS",
 };
 
 export const useLoginErrorMessage = (): string => {

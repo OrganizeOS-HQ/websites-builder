@@ -26,6 +26,11 @@ const environment = z.object({
   // the collab-relay/service paths that grant broad project access.
   ORGANIZEOS_PROVISION_TOKEN: z.string().optional(),
 
+  // Public key (PEM, ES256/P-256) for verifying OrganizeOS SSO trust tokens.
+  // OrganizeOS holds the private key; the fork holds only this public key. The
+  // organizeos dashboard strategy is registered only when this is set.
+  ORGANIZEOS_SSO_PUBLIC_KEY: z.string().optional(),
+
   PORT: z
     .string()
     .optional()
@@ -98,6 +103,7 @@ const rawEnv = {
   TRPC_SERVER_URL: process.env.TRPC_SERVER_URL,
   TRPC_SERVER_API_TOKEN: process.env.TRPC_SERVER_API_TOKEN,
   ORGANIZEOS_PROVISION_TOKEN: process.env.ORGANIZEOS_PROVISION_TOKEN,
+  ORGANIZEOS_SSO_PUBLIC_KEY: process.env.ORGANIZEOS_SSO_PUBLIC_KEY,
   PORT: process.env.PORT,
   MAX_UPLOAD_SIZE: process.env.MAX_UPLOAD_SIZE,
   S3_ENDPOINT: process.env.S3_ENDPOINT,
