@@ -12,6 +12,7 @@ import { builderAuthenticator } from "./builder-auth.server";
 import { staticEnv } from "~/env/env.static.server";
 import type { SessionData } from "./auth.server.utils";
 import { createContext } from "~/shared/context.server";
+import { organizeosSsoLogin } from "./auth-strategy/organizeos.server";
 
 const transformRefToAlias = (input: string) => {
   const rawAlias = input.endsWith(".staging") ? input.slice(0, -8) : input;
@@ -127,6 +128,29 @@ if (env.DEV_LOGIN === "true") {
       throw new Error("Secret is incorrect");
     }),
     "dev"
+  );
+}
+
+// OrganizeOS SSO: an OrganizeOS admin arrives from the OrganizeOS app with a
+// short-lived, single-use trust token (POST body). Registered on the DASHBOARD
+// authenticator only, and only when the verifying public key is configured, so
+// the builder OAuth/PKCE seam is untouched and the feature ships dark.
+if (env.ORGANIZEOS_SSO_PUBLIC_KEY) {
+  const ssoPublicKey = env.ORGANIZEOS_SSO_PUBLIC_KEY;
+  authenticator.use(
+    new FormStrategy(async ({ form, request }) => {
+      const tokenValue = form.get("token");
+      if (tokenValue == null || tokenValue.toString().trim() === "") {
+        throw new Error("SSO token is required");
+      }
+      const context = await createContext(request);
+      return await organizeosSsoLogin(
+        context,
+        tokenValue.toString(),
+        ssoPublicKey
+      );
+    }),
+    "organizeos"
   );
 }
 
