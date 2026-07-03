@@ -3,6 +3,7 @@ import type { AppContext } from "@webstudio-is/trpc-interface/index.server";
 import { createBuild } from "@webstudio-is/project-build/index.server";
 import { resolveOrCreateUserByEmail } from "./user.server";
 import { seedProjectResourcePresets } from "./resource-presets.server";
+import { seedSignupFormPage } from "./signup-form-preset.server";
 
 /**
  * OrganizeOS multi-tenant provisioning (Websites 2.0, Phase 4b).
@@ -163,9 +164,15 @@ export const provisionOrgWorkspace = async (
     }
   }
 
-  // 3b. Seed the OrganizeOS /v1 data Resource presets (idempotent re-sync).
+  // 3b. Seed the OrganizeOS /v1 data Resource presets + a starter signup form
+  //     page (both idempotent re-syncs).
   if (siteData !== undefined) {
     await seedProjectResourcePresets(context, {
+      projectId,
+      apiBaseUrl: siteData.apiBaseUrl,
+      readToken: siteData.readToken,
+    });
+    await seedSignupFormPage(context, {
       projectId,
       apiBaseUrl: siteData.apiBaseUrl,
       readToken: siteData.readToken,

@@ -2,8 +2,18 @@ import { createHash } from "node:crypto";
 import {
   encodeDataVariableId,
   replaceFormActionsWithResources,
+  type DataSource,
+  type Instance,
+  type Pages,
+  type Prop,
+  type Resource,
   type WebstudioData,
 } from "@webstudio-is/sdk";
+import {
+  parsePages,
+  serializePages,
+} from "@webstudio-is/project-build/index.server";
+import type { AppContext } from "@webstudio-is/trpc-interface/index.server";
 import {
   $,
   ws,
@@ -182,4 +192,120 @@ export const buildSignupFormData = ({
   });
 
   return { data, bodyId, pageId: uuidV5(`${projectId}:signup:page`) };
+};
+
+/** Replace entries sharing an incoming id, keep the rest, append the incoming. */
+const mergeById = <Type extends { id: string }>(
+  existing: Type[],
+  incoming: Type[]
+): Type[] => {
+  const incomingIds = new Set(incoming.map((item) => item.id));
+  return [...existing.filter((item) => !incomingIds.has(item.id)), ...incoming];
+};
+
+export type BuildContent = {
+  instances: Instance[];
+  props: Prop[];
+  dataSources: DataSource[];
+  resources: Resource[];
+  pages: Pages;
+};
+
+/**
+ * Merge the signup form into a build's content and add a "Sign up" page. Pure:
+ * mutates only the returned values (pages is mutated in place, so pass a build
+ * you own). Only the content maps are merged: the form's PRESET STYLES and
+ * breakpoints are intentionally dropped so the seeded fragment never has to
+ * reconcile its breakpoints against the build's. The starter form ships
+ * unstyled; the org styles it in the builder. Deterministic ids make this
+ * idempotent (re-seed replaces in place).
+ */
+export const mergeSignupFormIntoBuild = (
+  build: BuildContent,
+  {
+    projectId,
+    apiBaseUrl,
+    readToken,
+  }: { projectId: string; apiBaseUrl: string; readToken: string }
+): BuildContent => {
+  const { data, bodyId, pageId } = buildSignupFormData({
+    projectId,
+    apiBaseUrl,
+    readToken,
+  });
+
+  const instances = mergeById(build.instances, [...data.instances.values()]);
+  const props = mergeById(build.props, [...data.props.values()]);
+  const dataSources = mergeById(build.dataSources, [
+    ...data.dataSources.values(),
+  ]);
+  const resources = mergeById(build.resources, [...data.resources.values()]);
+
+  const pages = build.pages;
+  pages.pages.set(pageId, {
+    id: pageId,
+    name: "Sign up",
+    path: "/signup",
+    // title is an expression (a quoted string literal), matching createPages.
+    title: `"Sign up"`,
+    meta: {},
+    rootInstanceId: bodyId,
+  });
+  const rootFolder = pages.folders.get(pages.rootFolderId);
+  if (rootFolder && rootFolder.children.includes(pageId) === false) {
+    rootFolder.children.push(pageId);
+  }
+
+  return { instances, props, dataSources, resources, pages };
+};
+
+/**
+ * Seed (or re-sync) the org's dev build with the signup form + a "Sign up"
+ * page. Loads the dev build (deployment is null), merges content-only, writes
+ * back. Idempotent. Runs alongside seedProjectResourcePresets at provision time.
+ */
+export const seedSignupFormPage = async (
+  context: AppContext,
+  {
+    projectId,
+    apiBaseUrl,
+    readToken,
+  }: { projectId: string; apiBaseUrl: string; readToken: string }
+): Promise<void> => {
+  const client = context.postgrest.client;
+
+  const build = await client
+    .from("Build")
+    .select("id, instances, props, dataSources, resources, pages")
+    .eq("projectId", projectId)
+    .is("deployment", null)
+    .single();
+  if (build.error) {
+    throw build.error;
+  }
+
+  const merged = mergeSignupFormIntoBuild(
+    {
+      instances: JSON.parse(build.data.instances ?? "[]") as Instance[],
+      props: JSON.parse(build.data.props ?? "[]") as Prop[],
+      dataSources: JSON.parse(build.data.dataSources ?? "[]") as DataSource[],
+      resources: JSON.parse(build.data.resources ?? "[]") as Resource[],
+      pages: parsePages(build.data.pages),
+    },
+    { projectId, apiBaseUrl, readToken }
+  );
+
+  const update = await client
+    .from("Build")
+    .update({
+      instances: JSON.stringify(merged.instances),
+      props: JSON.stringify(merged.props),
+      dataSources: JSON.stringify(merged.dataSources),
+      resources: JSON.stringify(merged.resources),
+      pages: serializePages(merged.pages),
+    })
+    .eq("id", build.data.id);
+  if (update.error) {
+    throw update.error;
+  }
 };
