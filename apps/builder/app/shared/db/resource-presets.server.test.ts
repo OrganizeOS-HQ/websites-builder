@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { encodeDataVariableId, type DataSource } from "@webstudio-is/sdk";
+import type { DataSource } from "@webstudio-is/sdk";
 import {
   buildOrgResourcePresets,
   seedProjectResourcePresets,
@@ -13,34 +13,30 @@ describe("buildOrgResourcePresets", () => {
     readToken: "osk_secrettoken",
   };
 
-  test("emits one GET Resource per preset plus a token variable and bindings", () => {
+  test("emits one GET Resource per preset plus bindings", () => {
     const { dataSources, resources } = buildOrgResourcePresets(args);
 
     expect(resources).toHaveLength(V1_RESOURCE_PRESETS.length);
-    // token variable + one resource binding per preset
-    expect(dataSources).toHaveLength(V1_RESOURCE_PRESETS.length + 1);
+    // one resource binding per preset; no variable indirection
+    expect(dataSources).toHaveLength(V1_RESOURCE_PRESETS.length);
 
     for (const resource of resources) {
       expect(resource.method).toBe("get");
     }
   });
 
-  test("stores the token as a string variable and binds it in the auth header", () => {
+  test("inlines the token as a literal auth header on every resource", () => {
     const { dataSources, resources } = buildOrgResourcePresets(args);
 
-    const tokenVariable = dataSources.find(
-      (source): source is Extract<DataSource, { type: "variable" }> =>
-        source.type === "variable"
+    // No variable indirection: variables are instance-scoped and page codegen
+    // drops out-of-scope ones, which broke published pages.
+    expect(dataSources.some((source) => source.type === "variable")).toBe(
+      false
     );
-    expect(tokenVariable?.value).toEqual({
-      type: "string",
-      value: "osk_secrettoken",
-    });
 
-    const expectedAuth = `"Bearer " + ${encodeDataVariableId(tokenVariable!.id)}`;
     for (const resource of resources) {
       expect(resource.headers).toEqual([
-        { name: "Authorization", value: expectedAuth },
+        { name: "Authorization", value: `"Bearer osk_secrettoken"` },
       ]);
     }
   });
@@ -132,7 +128,7 @@ describe("seedProjectResourcePresets", () => {
     const writtenResources = JSON.parse(updates[0].resources as string);
     const writtenDataSources = JSON.parse(updates[0].dataSources as string);
     expect(writtenResources).toHaveLength(V1_RESOURCE_PRESETS.length);
-    expect(writtenDataSources).toHaveLength(V1_RESOURCE_PRESETS.length + 1);
+    expect(writtenDataSources).toHaveLength(V1_RESOURCE_PRESETS.length);
   });
 
   test("is idempotent: re-seeding replaces presets in place, not duplicating", async () => {
@@ -146,7 +142,7 @@ describe("seedProjectResourcePresets", () => {
     const writtenResources = JSON.parse(updates[0].resources as string);
     const writtenDataSources = JSON.parse(updates[0].dataSources as string);
     expect(writtenResources).toHaveLength(V1_RESOURCE_PRESETS.length);
-    expect(writtenDataSources).toHaveLength(V1_RESOURCE_PRESETS.length + 1);
+    expect(writtenDataSources).toHaveLength(V1_RESOURCE_PRESETS.length);
   });
 
   test("preserves unrelated user-authored dataSources and resources", async () => {
@@ -166,8 +162,8 @@ describe("seedProjectResourcePresets", () => {
       updates[0].dataSources as string
     ) as DataSource[];
     expect(writtenDataSources.some((d) => d.id === "user-var")).toBe(true);
-    // user var + token var + 3 bindings
-    expect(writtenDataSources).toHaveLength(V1_RESOURCE_PRESETS.length + 2);
+    // user var + 3 bindings
+    expect(writtenDataSources).toHaveLength(V1_RESOURCE_PRESETS.length + 1);
   });
 
   test("throws when the dev build cannot be loaded", async () => {

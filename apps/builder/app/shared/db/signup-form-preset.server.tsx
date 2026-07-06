@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import {
-  encodeDataVariableId,
   replaceFormActionsWithResources,
   type DataSource,
   type Instance,
@@ -36,7 +35,7 @@ import {
  *    resource body and runs it SERVER-SIDE, so the Authorization token never
  *    reaches the browser.
  *  - We inject the org read token into that resource's Authorization header
- *    (referencing the same "Site read token" variable the read presets seed).
+ *    as a literal expression (evaluated server-side only; see below).
  *  - Input `name` attributes become the JSON body keys, so they MUST match the
  *    /v1/signups schema (email, first_name, last_name).
  *  - A `formState` variable drives initial/success/error visibility.
@@ -47,8 +46,8 @@ import {
  * provisioning.
  */
 
-// Fixed namespace for signup-form-derived ids. Shares the read-preset token
-// variable id (project:v1:token) so both presets reference one token variable.
+// Fixed namespace for signup-form-derived ids (same namespace as the read
+// presets so all preset ids live in one deterministic family).
 const PRESET_NAMESPACE = "3f2a1b7c-8d5e-45a1-9b2c-6e0d1a2b3c4d";
 
 const uuidV5 = (name: string): string => {
@@ -141,7 +140,7 @@ export type SignupFormData = {
 /**
  * Assemble the signup form: render the template with deterministic ids, convert
  * the form action into a server-side action resource, inject the org token
- * header, and attach the shared token variable. Pure: no I/O. Deterministic per
+ * header as a literal. Pure: no I/O. Deterministic per
  * projectId, so re-seeding converges instead of duplicating.
  */
 export const buildSignupFormData = ({
@@ -155,7 +154,6 @@ export const buildSignupFormData = ({
 }): SignupFormData => {
   const base = apiBaseUrl.replace(/\/+$/, "");
   const bodyId = uuidV5(`${projectId}:signup:body`);
-  const tokenVariableId = uuidV5(`${projectId}:v1:token`);
 
   let counter = 0;
   const generateId = () => uuidV5(`${projectId}:signup:${counter++}`);
@@ -172,24 +170,18 @@ export const buildSignupFormData = ({
     resources: data.resources,
   });
 
-  // Inject the org read token into the action resource's Authorization header,
-  // referencing the shared "Site read token" variable (encodeDataVariableId
-  // handles the id -> expression encoding, dashes -> __DASH__).
-  const authHeaderValue = `"Bearer " + ${encodeDataVariableId(tokenVariableId)}`;
+  // Inject the org read token into the action resource's Authorization header
+  // as a LITERAL expression. Variables are instance-scoped and page codegen
+  // drops out-of-scope ones (the publish spike produced "Bearer " + undefined
+  // via the variable route); resource headers are evaluated only server-side,
+  // so the literal is equivalent security-wise, and the deterministic ids mean
+  // a re-seed rewrites it on token rotation.
+  const authHeaderValue = JSON.stringify(`Bearer ${readToken}`);
   for (const resource of data.resources.values()) {
     if (resource.name === "action") {
       resource.headers.push({ name: "Authorization", value: authHeaderValue });
     }
   }
-
-  // The token variable the header references. Same id as the read presets seed,
-  // so the two presets share one variable (deduped on merge).
-  data.dataSources.set(tokenVariableId, {
-    type: "variable",
-    id: tokenVariableId,
-    name: "Site read token",
-    value: { type: "string", value: readToken },
-  });
 
   return { data, bodyId, pageId: uuidV5(`${projectId}:signup:page`) };
 };
