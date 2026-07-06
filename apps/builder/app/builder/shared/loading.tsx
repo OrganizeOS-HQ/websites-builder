@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Box, Flex, Progress, theme } from "@webstudio-is/design-system";
-import { WebstudioIcon } from "@webstudio-is/icons";
+import { OrganizeosLogo } from "~/shared/organizeos-logo";
 import { useInterval } from "~/shared/hook-utils/use-interval";
 
 export const LoadingBackground = ({
@@ -93,7 +93,7 @@ export const Loading = ({ state }: { state: LoadingState }) => {
           gap="3"
           css={{ isolation: "isolate" }}
         >
-          <WebstudioIcon size={60} />
+          <OrganizeosLogo size={60} />
           <Progress value={fakeProgress} />
         </Flex>
       )}
