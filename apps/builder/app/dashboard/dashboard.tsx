@@ -10,9 +10,6 @@ import {
   css,
   globalCss,
   theme,
-  PanelBanner,
-  Link,
-  buttonStyle,
   Separator,
   Grid,
   IconButton,
@@ -35,7 +32,7 @@ import { ProfileMenu } from "./profile-menu";
 import { Projects } from "./projects/projects";
 import { Welcome } from "./welcome/welcome";
 import { Header } from "./shared/layout";
-import { help, socialLinks } from "~/shared/help";
+import { help } from "~/shared/help";
 import { SearchResults } from "./search/search-results";
 import type { DashboardData } from "./shared/types";
 import { Search } from "./search/search-field";
@@ -310,26 +307,11 @@ export const Dashboard = () => {
               </CollapsibleSection>
             )}
           </nav>
-          <div>
-            <PanelBanner variant="neutral">
-              <Text variant="titles">Inception is live</Text>
-              <Text color="subtle">
-                An AI-powered design tool to explore ideas and instantly
-                generate HTML/CSS for Webstudio Builder or any other platform.
-              </Text>
-              <Link
-                className={buttonStyle({
-                  color: "gradient",
-                })}
-                underline="none"
-                href="https://wstd.us/inception"
-                target="_blank"
-                color="contrast"
-              >
-                Get started with Inception
-              </Link>
-            </PanelBanner>
-          </div>
+          {/* OrganizeOS fork: upstream marketing (Inception promo banner and
+              the Follow-us social links) removed. The Help & support links
+              (docs, video tutorials, community) intentionally stay pointed at
+              upstream Webstudio resources. */}
+          <div />
           <CollapsibleSection label="Help & support" fullWidth>
             <NavigationItems
               items={help.map((item) => ({
@@ -339,29 +321,6 @@ export const Dashboard = () => {
                 children: item.label,
               }))}
             />
-            <Flex
-              align="center"
-              gap="2"
-              css={{
-                paddingInline: theme.panel.paddingInline,
-                paddingBlock: theme.spacing[5],
-              }}
-            >
-              <Text variant="labels" color="subtle">
-                Follow us:
-              </Text>
-              {socialLinks.map(({ label, url, icon }) => (
-                <Link
-                  key={url}
-                  href={url}
-                  target="_blank"
-                  color="subtle"
-                  aria-label={label}
-                >
-                  {icon}
-                </Link>
-              ))}
-            </Flex>
           </CollapsibleSection>
         </Grid>
         {view === "projects" && (
