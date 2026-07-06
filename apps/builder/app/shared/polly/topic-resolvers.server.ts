@@ -2,6 +2,7 @@ import { notification } from "@webstudio-is/project/index.server";
 import { db as dashboardDb } from "@webstudio-is/dashboard/index.server";
 import { getPlanInfo } from "@webstudio-is/plans/index.server";
 import { defaultPlanFeatures } from "@webstudio-is/plans";
+import { ORGANIZEOS_SERVICE_PROVIDER } from "@webstudio-is/trpc-interface/index.server";
 import { publicStaticEnv } from "~/env/env.static";
 import type { TopicResolvers, TopicName, SubscriptionResponse } from "./types";
 
@@ -56,13 +57,44 @@ const resolvers: TopicResolvers = {
       return false;
     }
 
-    // Check each workspace owner's plan — suspended if owner of any workspace can't cover seats.
     const ownerIds = sharedWorkspaces.map(
       (m) => (m.workspace as unknown as { userId: string }).userId
     );
-    const planResults = await getPlanInfo(ownerIds, ctx);
 
-    for (const m of sharedWorkspaces) {
+    // OrganizeOS org workspaces are owned by a synthetic service account that
+    // is not a billing entity, so the owner-plan seat check must never flag
+    // them (mirrors the hasProjectPermit exemption in trpc-interface). On a
+    // lookup error we keep every owner in the check: a false toast is safer
+    // than silently hiding a real suspension for a human-owned workspace.
+    const owners = await ctx.postgrest.client
+      .from("User")
+      .select("id, provider")
+      .in("id", ownerIds);
+    const serviceOwnerIds = new Set(
+      (owners.data ?? [])
+        .filter((owner) => owner.provider === ORGANIZEOS_SERVICE_PROVIDER)
+        .map((owner) => owner.id)
+    );
+    const billableWorkspaces = sharedWorkspaces.filter(
+      (m) =>
+        serviceOwnerIds.has(
+          (m.workspace as unknown as { userId: string }).userId
+        ) === false
+    );
+
+    if (billableWorkspaces.length === 0) {
+      return false;
+    }
+
+    // Check each workspace owner's plan: suspended if any owner can't cover seats.
+    const planResults = await getPlanInfo(
+      billableWorkspaces.map(
+        (m) => (m.workspace as unknown as { userId: string }).userId
+      ),
+      ctx
+    );
+
+    for (const m of billableWorkspaces) {
       const ownerId = (m.workspace as unknown as { userId: string }).userId;
       const features =
         planResults.get(ownerId)?.planFeatures ?? defaultPlanFeatures;

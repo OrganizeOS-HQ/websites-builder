@@ -66,7 +66,7 @@ export const getProjectOwnerId = async (
 
 // Synthetic owner of an OrganizeOS org-owned workspace. Such an owner is not a
 // billing entity, so the seat-plan downgrade gate must not apply to it.
-const ORGANIZEOS_SERVICE_PROVIDER = "organizeos-service";
+export const ORGANIZEOS_SERVICE_PROVIDER = "organizeos-service";
 
 const serviceOwnedProjectCache = new WeakMap<
   object,

@@ -73,7 +73,70 @@ describe("seatSuspended (msw)", () => {
       db.get("WorkspaceMember", () =>
         json([memberRow("ws-owner", "owner-1", "Owner Workspace")])
       ),
+      // Owner is a regular human user → stays in the seat check.
+      db.get("User", () => json([{ id: "owner-1", provider: "github" }])),
       // getPlanInfo: no user products → defaultPlanFeatures (maxWorkspaces=1 → suspended)
+      db.get("UserProduct", () => json([]))
+    );
+
+    const result = await resolveTopics(
+      ["seatSuspended"],
+      createContext("user-1")
+    );
+    expect(result.seatSuspended).toBe("Owner Workspace");
+  });
+
+  test("returns false for a workspace owned by the OrganizeOS service account", async () => {
+    server.use(
+      db.get("WorkspaceMember", () =>
+        json([memberRow("ws-org", "svc-owner-1", "Feel Test Signup Org")])
+      ),
+      // The synthetic org owner is not a billing entity: exempt from the
+      // seat check even though it has no products (default free plan).
+      db.get("User", () =>
+        json([{ id: "svc-owner-1", provider: "organizeos-service" }])
+      ),
+      db.get("UserProduct", () => json([]))
+    );
+
+    const result = await resolveTopics(
+      ["seatSuspended"],
+      createContext("user-1")
+    );
+    expect(result.seatSuspended).toBe(false);
+  });
+
+  test("still flags a human-owned free workspace when a service-owned one is also present", async () => {
+    server.use(
+      db.get("WorkspaceMember", () =>
+        json([
+          memberRow("ws-org", "svc-owner-1", "Feel Test Signup Org"),
+          memberRow("ws-human", "owner-1", "Human Workspace"),
+        ])
+      ),
+      db.get("User", () =>
+        json([
+          { id: "svc-owner-1", provider: "organizeos-service" },
+          { id: "owner-1", provider: "google" },
+        ])
+      ),
+      db.get("UserProduct", () => json([]))
+    );
+
+    const result = await resolveTopics(
+      ["seatSuspended"],
+      createContext("user-1")
+    );
+    expect(result.seatSuspended).toBe("Human Workspace");
+  });
+
+  test("keeps the seat check (fail-safe) when the owner-provider lookup errors", async () => {
+    server.use(
+      db.get("WorkspaceMember", () =>
+        json([memberRow("ws-owner", "owner-1", "Owner Workspace")])
+      ),
+      // Provider lookup fails → owner stays in the check → still suspended.
+      db.get("User", () => json({ message: "boom" }, { status: 500 })),
       db.get("UserProduct", () => json([]))
     );
 
@@ -93,6 +156,7 @@ describe("seatSuspended (msw)", () => {
       db.get("WorkspaceMember", () =>
         json([memberRow("ws-owner", "owner-1", "Owner Workspace")])
       ),
+      db.get("User", () => json([{ id: "owner-1", provider: "github" }])),
       db.get("UserProduct", () =>
         json([
           { userId: "owner-1", productId: "prod-pro", subscriptionId: null },

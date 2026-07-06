@@ -6,6 +6,7 @@ export {
   getProjectOwnerId,
   getProjectPlanFeatures,
   getPlanFeaturesByOwnerId,
+  ORGANIZEOS_SERVICE_PROVIDER,
 } from "./context/project-plan.server";
 
 export {
