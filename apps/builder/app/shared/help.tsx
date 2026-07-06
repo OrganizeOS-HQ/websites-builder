@@ -1,6 +1,7 @@
 import {
   ContentIcon,
   DiscordIcon,
+  GithubIcon,
   YoutubeIcon,
   XLogoIcon,
   BlueskyIcon,
@@ -48,5 +49,13 @@ export const help = [
     label: "Community",
     url: "https://wstd.us/community",
     icon: <DiscordIcon />,
+  },
+  // AGPL section 13 source offer: this builder is a fork of Webstudio and the
+  // complete corresponding source lives in the public fork repository. Keep
+  // this link present wherever the help list renders.
+  {
+    label: "Built on Webstudio (source code)",
+    url: "https://github.com/OrganizeOS-HQ/websites-builder",
+    icon: <GithubIcon />,
   },
 ] as const;

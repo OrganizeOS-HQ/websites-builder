@@ -4,7 +4,8 @@ import {
   rawTheme,
   ToolbarButton,
 } from "@webstudio-is/design-system";
-import { MenuIcon, WebstudioIcon } from "@webstudio-is/icons";
+import { MenuIcon } from "@webstudio-is/icons";
+import { OrganizeosLogo } from "~/shared/organizeos-logo";
 
 const size = rawTheme.spacing[9];
 
@@ -53,7 +54,7 @@ export const MenuButton = () => {
       <DropdownMenuTrigger>
         <span className={innerContainerStyle()}>
           <span className={faceStyle({ front: true })}>
-            <WebstudioIcon size={22} />
+            <OrganizeosLogo size={22} />
           </span>
           <span className={faceStyle({ back: true })}>
             <MenuIcon size={22} />
