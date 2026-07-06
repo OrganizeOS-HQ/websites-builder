@@ -1,5 +1,6 @@
 import { type ActionFunctionArgs } from "@remix-run/server-runtime";
 import { authenticator } from "~/services/auth.server";
+import { resolveSsoLandingUrl } from "~/services/auth-strategy/organizeos.server";
 import { dashboardPath, isDashboard, loginPath } from "~/shared/router-utils";
 import { AUTH_PROVIDERS } from "~/shared/session";
 import { clearReturnToCookie, returnToPath } from "~/services/cookie.server";
@@ -32,7 +33,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   preventCrossOriginCookie(request);
 
-  const returnTo = (await returnToPath(request)) ?? dashboardPath();
+  // Land directly in the org's project builder (the org has exactly one
+  // project, derived from the token's organizationId), skipping the fork
+  // dashboard: the OrganizeOS Website area is the management surface. An
+  // explicit returnTo cookie (mid-flow re-auth) still takes precedence, and
+  // anything unparsable falls back to the dashboard. Clone the request: the
+  // authenticator consumes the original body.
+  const token = (await request.clone().formData()).get("token");
+  const deepLink =
+    typeof token === "string"
+      ? resolveSsoLandingUrl(token, new URL(request.url).origin)
+      : null;
+  const returnTo = (await returnToPath(request)) ?? deepLink ?? dashboardPath();
 
   try {
     return await authenticator.authenticate("organizeos", request, {

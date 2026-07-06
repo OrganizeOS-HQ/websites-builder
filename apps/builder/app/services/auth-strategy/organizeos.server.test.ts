@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { generateKeyPairSync, sign as cryptoSign } from "node:crypto";
-import { consumeSsoJti, organizeosSsoLogin } from "./organizeos.server";
+import { deriveProjectId } from "~/shared/db/provision.server";
+import {
+  consumeSsoJti,
+  organizeosSsoLogin,
+  resolveSsoLandingUrl,
+} from "./organizeos.server";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -114,5 +119,38 @@ describe("organizeosSsoLogin", () => {
       organizeosSsoLogin(context as never, makeToken("replayed"), publicKeyPem)
     ).rejects.toThrow();
     expect(resolveOrCreateUserByEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveSsoLandingUrl", () => {
+  const ORIGIN = "https://builder.example.com";
+
+  test("deep-links into the org's derived project builder", () => {
+    const url = resolveSsoLandingUrl(makeToken(), ORIGIN);
+    const expectedProjectId = deriveProjectId("org-1");
+    expect(url).not.toBeNull();
+    // Builder lives on the p-<projectId> subdomain of the auth origin.
+    expect(new URL(url!).host).toBe(
+      `p-${expectedProjectId}.builder.example.com`
+    );
+  });
+
+  test("is deterministic for the same org across tokens", () => {
+    expect(resolveSsoLandingUrl(makeToken("jti-a"), ORIGIN)).toBe(
+      resolveSsoLandingUrl(makeToken("jti-b"), ORIGIN)
+    );
+  });
+
+  test.each(["not-a-jwt", "a.b", "", "a.!!!notbase64.c"])(
+    "returns null (dashboard fallback) for unparsable input %j",
+    (input) => {
+      expect(resolveSsoLandingUrl(input, ORIGIN)).toBeNull();
+    }
+  );
+
+  test("returns null when the payload has no organizationId", () => {
+    const header = b64url({ alg: "ES256", typ: "JWT" });
+    const payload = b64url({ email: "admin@example.org" });
+    expect(resolveSsoLandingUrl(`${header}.${payload}.sig`, ORIGIN)).toBeNull();
   });
 });

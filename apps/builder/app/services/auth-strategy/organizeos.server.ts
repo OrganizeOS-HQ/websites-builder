@@ -1,5 +1,7 @@
 import type { AppContext } from "@webstudio-is/trpc-interface/index.server";
 import { resolveOrCreateUserByEmail } from "~/shared/db/user.server";
+import { deriveProjectId } from "~/shared/db/provision.server";
+import { builderUrl } from "~/shared/router-utils";
 import { verifyOrganizeosSsoToken } from "./organizeos-token.server";
 
 /**
@@ -68,4 +70,47 @@ export const organizeosSsoLogin = async (
   const user = await resolveOrCreateUserByEmail(context, claims.email);
 
   return { userId: user.id, createdAt: Date.now() };
+};
+
+/**
+ * Compute where a successful SSO login should land: directly in the org's
+ * project builder, skipping the dashboard (an OrganizeOS org has exactly one
+ * project, deterministically derived from its organizationId, and the
+ * OrganizeOS Website area is the management surface).
+ *
+ * The organizationId is read from the token payload WITHOUT verification,
+ * which is safe for this purpose only: the value chooses a redirect target,
+ * never grants access. The strategy verifies the same token string before any
+ * session exists (a failed login never reaches the redirect), so the claim
+ * that picked the destination is the claim that was verified. Project access
+ * itself is still enforced per-request by the builder auth seam against real
+ * WorkspaceMember rows.
+ *
+ * Returns null on any parse miss; the caller falls back to the dashboard.
+ */
+export const resolveSsoLandingUrl = (
+  token: string,
+  origin: string
+): string | null => {
+  try {
+    const payloadSegment = token.split(".")[1];
+    if (payloadSegment === undefined) {
+      return null;
+    }
+    const payload = JSON.parse(
+      Buffer.from(payloadSegment, "base64url").toString("utf8")
+    ) as { organizationId?: unknown };
+    if (
+      typeof payload.organizationId !== "string" ||
+      payload.organizationId.length === 0
+    ) {
+      return null;
+    }
+    return builderUrl({
+      projectId: deriveProjectId(payload.organizationId),
+      origin,
+    });
+  } catch {
+    return null;
+  }
 };
