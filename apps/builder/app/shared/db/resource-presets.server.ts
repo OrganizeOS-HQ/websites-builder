@@ -1,9 +1,5 @@
 import { createHash } from "node:crypto";
-import {
-  encodeDataVariableId,
-  type DataSource,
-  type Resource,
-} from "@webstudio-is/sdk";
+import type { DataSource, Resource } from "@webstudio-is/sdk";
 import type { AppContext } from "@webstudio-is/trpc-interface/index.server";
 
 /**
@@ -12,10 +8,11 @@ import type { AppContext } from "@webstudio-is/trpc-interface/index.server";
  *
  * Each preset is a server-side `Resource` (GET) plus a `resource` DataSource so
  * it shows up in the builder's data panel and can be bound to a Collection with
- * no setup. The per-org read token is stored as a `variable` DataSource and
- * referenced from the Authorization header expression, so it is inlined only
- * into the SERVER-side getResources() at build time and never shipped to a
- * visitor's browser (Webstudio resolves Resource fetches in the page loader).
+ * no setup. The per-org read token is inlined as a literal Authorization header
+ * expression on each Resource; resource headers are evaluated only in the
+ * SERVER-side getResources() (builder loader / published-page loader) and never
+ * shipped to a visitor's browser (Webstudio resolves Resource fetches in the
+ * page loader).
  *
  * The token is an org-scoped, READ-ONLY, public-data-only key (it only unlocks
  * already-published + public data via /v1 and is revocable), so persisting it
@@ -76,20 +73,17 @@ export const buildOrgResourcePresets = ({
 }): OrgResourcePresets => {
   const base = apiBaseUrl.replace(/\/+$/, "");
 
-  const tokenVariableId = uuidV5(`${projectId}:v1:token`);
-  const tokenVariable: DataSource = {
-    type: "variable",
-    id: tokenVariableId,
-    name: "Site read token",
-    value: { type: "string", value: readToken },
-  };
-
-  // "Bearer " + <token variable>. encodeDataVariableId handles the id encoding
-  // (dashes -> __DASH__) so the expression references the variable correctly.
-  const authHeaderExpression = `"Bearer " + ${encodeDataVariableId(tokenVariableId)}`;
+  // The token is inlined as a LITERAL header expression, not routed through a
+  // variable DataSource. Variables are instance-scoped (page codegen drops
+  // out-of-scope ones: the publish spike produced "Bearer " + undefined), and
+  // these Resources must be bindable from any page. Resource headers are only
+  // evaluated server-side (builder loader / published-page loader), so the
+  // literal is equivalent security-wise, and the deterministic resource ids
+  // mean a re-provision rewrites the literal on token rotation.
+  const authHeaderExpression = JSON.stringify(`Bearer ${readToken}`);
 
   const resources: Resource[] = [];
-  const dataSources: DataSource[] = [tokenVariable];
+  const dataSources: DataSource[] = [];
 
   for (const preset of V1_RESOURCE_PRESETS) {
     const resourceId = uuidV5(`${projectId}:v1:${preset.key}:resource`);

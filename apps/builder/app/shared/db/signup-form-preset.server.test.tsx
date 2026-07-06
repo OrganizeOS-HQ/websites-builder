@@ -1,5 +1,4 @@
 import { describe, expect, test } from "vitest";
-import { encodeDataVariableId } from "@webstudio-is/sdk";
 import {
   buildSignupFormData,
   SIGNUP_FORM_FIELD_NAMES,
@@ -38,27 +37,22 @@ describe("buildSignupFormData", () => {
     expect(actionProp?.value).toBe(action?.id);
   });
 
-  test("injects the org token into the action Authorization header via the shared variable", () => {
+  test("inlines the org token into the action Authorization header as a literal", () => {
     const { data } = build();
-    const tokenVariable = [...data.dataSources.values()].find(
-      (d) => d.type === "variable" && d.name === "Site read token"
-    );
-    expect(tokenVariable).toBeDefined();
-    if (tokenVariable?.type !== "variable") {
-      throw new Error("expected variable");
-    }
-    expect(tokenVariable.value).toEqual({
-      type: "string",
-      value: "osk_secrettoken",
-    });
+
+    // No token variable: variables are instance-scoped and page codegen drops
+    // out-of-scope ones (publish spike produced "Bearer " + undefined).
+    expect(
+      [...data.dataSources.values()].some(
+        (d) => d.type === "variable" && d.name === "Site read token"
+      )
+    ).toBe(false);
 
     const action = [...data.resources.values()].find(
       (r) => r.name === "action"
     );
     const auth = action?.headers.find((h) => h.name === "Authorization");
-    expect(auth?.value).toBe(
-      `"Bearer " + ${encodeDataVariableId(tokenVariable.id)}`
-    );
+    expect(auth?.value).toBe(`"Bearer osk_secrettoken"`);
     // Content-Type is preserved so the endpoint receives JSON.
     expect(action?.headers.some((h) => h.name === "Content-Type")).toBe(true);
   });

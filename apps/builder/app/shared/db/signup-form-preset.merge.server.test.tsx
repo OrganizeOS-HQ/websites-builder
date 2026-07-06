@@ -87,11 +87,12 @@ describe("mergeSignupFormIntoBuild", () => {
     const action = merged.resources.find((r) => r.name === "action");
     expect(action?.url).toBe(`"https://app.example.org/api/public/v1/signups"`);
     expect(action?.headers.some((h) => h.name === "Authorization")).toBe(true);
+    // Token travels as a literal on the action resource, not a variable.
     expect(
       merged.dataSources.some(
         (d) => d.type === "variable" && d.name === "Site read token"
       )
-    ).toBe(true);
+    ).toBe(false);
   });
 
   // The decisive headless check: the merged pages must survive the builder's
