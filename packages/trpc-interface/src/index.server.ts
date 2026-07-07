@@ -1,4 +1,4 @@
-export type { SharedRouter } from "./shared/shared-router";
+export type { SharedRouter, TrpcInterfaceClient } from "./shared/shared-router";
 export { createTrpcProxyServiceClient } from "./shared/client";
 
 export type { AppContext } from "./context/context.server";
