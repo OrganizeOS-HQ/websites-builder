@@ -157,7 +157,11 @@ export const loader = async (arg: LoaderFunctionArgs) => {
       status: pageMeta.status,
       headers: {
         "Cache-Control":
-          authRoute === undefined ? "public, max-age=600" : "private, no-store",
+          // OrganizeOS: always no-store. Pages carry live data via server-side
+          // Resources, and the upstream edge honors this header, so max-age=600
+          // would serve ten-minute-stale HTML to the platform reverse proxy
+          // (the /v1 edge cache is the single caching layer).
+          "no-store",
       },
     }
   );
