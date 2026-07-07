@@ -31,6 +31,13 @@ const environment = z.object({
   // organizeos dashboard strategy is registered only when this is set.
   ORGANIZEOS_SSO_PUBLIC_KEY: z.string().optional(),
 
+  // Publish executor dispatch (Phase 5): the GitHub repo carrying the
+  // publish-site workflow and a fine-grained token with actions:write on it.
+  // When both are set, Publish dispatches the executor instead of webstudio's
+  // cloud publisher.
+  ORGANIZEOS_PUBLISH_REPO: z.string().optional(),
+  ORGANIZEOS_PUBLISH_GITHUB_TOKEN: z.string().optional(),
+
   PORT: z
     .string()
     .optional()
@@ -104,6 +111,8 @@ const rawEnv = {
   TRPC_SERVER_API_TOKEN: process.env.TRPC_SERVER_API_TOKEN,
   ORGANIZEOS_PROVISION_TOKEN: process.env.ORGANIZEOS_PROVISION_TOKEN,
   ORGANIZEOS_SSO_PUBLIC_KEY: process.env.ORGANIZEOS_SSO_PUBLIC_KEY,
+  ORGANIZEOS_PUBLISH_REPO: process.env.ORGANIZEOS_PUBLISH_REPO,
+  ORGANIZEOS_PUBLISH_GITHUB_TOKEN: process.env.ORGANIZEOS_PUBLISH_GITHUB_TOKEN,
   PORT: process.env.PORT,
   MAX_UPLOAD_SIZE: process.env.MAX_UPLOAD_SIZE,
   S3_ENDPOINT: process.env.S3_ENDPOINT,
