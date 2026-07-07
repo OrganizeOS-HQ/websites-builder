@@ -63,7 +63,9 @@ export const resolveOrganizationIdForBuild = async (
     .eq("id", buildId)
     .single();
   const projectId = (build.data as { projectId?: string } | null)?.projectId;
-  if (build.error || typeof projectId !== "string") return null;
+  if (build.error || typeof projectId !== "string") {
+    return null;
+  }
 
   const project = await client
     .from("Project")
@@ -71,7 +73,9 @@ export const resolveOrganizationIdForBuild = async (
     .eq("id", projectId)
     .single();
   const userId = (project.data as { userId?: string | null } | null)?.userId;
-  if (project.error || typeof userId !== "string") return null;
+  if (project.error || typeof userId !== "string") {
+    return null;
+  }
 
   const user = await client
     .from("User")
@@ -79,7 +83,9 @@ export const resolveOrganizationIdForBuild = async (
     .eq("id", userId)
     .single();
   const email = (user.data as { email?: string } | null)?.email;
-  if (user.error || typeof email !== "string") return null;
+  if (user.error || typeof email !== "string") {
+    return null;
+  }
 
   return parseOrganizationIdFromServiceEmail(email);
 };
