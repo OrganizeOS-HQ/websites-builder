@@ -104,7 +104,9 @@ const customFetch: typeof fetch = (input, init) => {
 };
 
 export const loader = async (arg: LoaderFunctionArgs) => {
-  const authRoute = authenticateProductionRequest(arg.request);
+  // Throws 401 when the org configured page-level basic auth; the return
+  // value is unused since responses are always no-store.
+  authenticateProductionRequest(arg.request);
 
   const url = new URL(arg.request.url);
   const host =
