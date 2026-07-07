@@ -1,0 +1,93 @@
+name: Publish site
+
+# OrganizeOS Websites 2.0 Phase 5: the publish executor. Builds an org's
+# published project with OUR CLI (this fork: animation package removed,
+# template patches applied) and deploys it as a new immutable deployment on
+# the organizeos-sites Vercel project, then reports the deployment URL back to
+# OrganizeOS, which flips the org's ledger pointer. Each publish is its own
+# deployment URL, so the flip is atomic and rollback is repointing.
+#
+# Required repository secrets (all server-to-server; none reach the built app):
+#   WSTD_SERVICE_TOKEN          TRPC_SERVER_API_TOKEN of the deployed builder
+#   VERCEL_TOKEN                scoped deploy token for the sites project
+#   VERCEL_ORG_ID               Vercel team/org id
+#   VERCEL_SITES_PROJECT_ID     project id of organizeos-sites
+#   PUBLISH_CALLBACK_URL        OrganizeOS publish-callback endpoint
+#   PUBLISH_CALLBACK_TOKEN      shared secret for that endpoint
+# Required repository variable:
+#   BUILDER_ORIGIN              e.g. https://builder.organizeos.org
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: "Published Build id to deploy"
+        required: true
+      organization_id:
+        description: "OrganizeOS organization id (for the pointer flip)"
+        required: true
+
+concurrency:
+  # One publish at a time per org; a newer publish supersedes a queued one.
+  group: publish-${{ inputs.organization_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    timeout-minutes: 25
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install and build CLI
+        run: |
+          pnpm install
+          pnpm -r --filter "./packages/*" build
+
+      - name: Sync project bundle
+        working-directory: ${{ runner.temp }}
+        run: |
+          node "$GITHUB_WORKSPACE/packages/cli/bin.js" sync \
+            --buildId "${{ inputs.build_id }}" \
+            --origin "${{ vars.BUILDER_ORIGIN }}" \
+            --authToken "${{ secrets.WSTD_SERVICE_TOKEN }}"
+
+      - name: Build site
+        working-directory: ${{ runner.temp }}
+        run: |
+          node "$GITHUB_WORKSPACE/packages/cli/bin.js" build \
+            --template react-router --template react-router-vercel
+
+      - name: Deploy to Vercel
+        id: deploy
+        working-directory: ${{ runner.temp }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_SITES_PROJECT_ID }}
+        run: |
+          npm install --global vercel@latest
+          url=$(vercel deploy --token "${{ secrets.VERCEL_TOKEN }}" --yes --prod --skip-domain)
+          echo "deployment_url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed: $url"
+
+      - name: Flip the OrganizeOS pointer
+        run: |
+          curl --fail-with-body -sS -X POST "${{ secrets.PUBLISH_CALLBACK_URL }}" \
+            -H "Authorization: ${{ secrets.PUBLISH_CALLBACK_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "organizationId": "${{ inputs.organization_id }}",
+              "buildId": "${{ inputs.build_id }}",
+              "deploymentUrl": "${{ steps.deploy.outputs.deployment_url }}"
+            }'
