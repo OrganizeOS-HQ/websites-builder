@@ -66,29 +66,50 @@ export const Login = ({
 
         <TooltipProvider>
           <Flex direction="column" gap="3" css={{ width: "100%" }}>
-            <Form method="post" style={{ display: "contents" }}>
-              <Button
-                disabled={isGoogleEnabled === false}
-                prefix={<GoogleIcon size={22} />}
-                color="primary"
-                css={{ height: theme.spacing[15] }}
-                formAction={authPath({ provider: "google" })}
-              >
-                Sign in with Google
-              </Button>
-              <Button
-                disabled={isGithubEnabled === false}
-                prefix={<GithubIcon size={22} fill="currentColor" />}
-                color="ghost"
-                css={{
-                  border: `1px solid ${theme.colors.borderDark}`,
-                  height: theme.spacing[15],
-                }}
-                formAction={authPath({ provider: "github" })}
-              >
-                Sign in with GitHub
-              </Button>
-            </Form>
+            {/* OrganizeOS: with no OAuth configured, admins sign in via SSO
+                from their workspace; the buttons would be dead ends. Point
+                back to the platform instead. */}
+            {isGithubEnabled === false && isGoogleEnabled === false ? (
+              <>
+                <Text align="center" color="subtle">
+                  Sign in from your organization&apos;s workspace: open the
+                  Website area and select &quot;Open website builder&quot;.
+                </Text>
+                <Button
+                  color="primary"
+                  css={{ height: theme.spacing[15] }}
+                  onClick={() => {
+                    window.location.href = "https://app.organizeos.org";
+                  }}
+                >
+                  Go to OrganizeOS
+                </Button>
+              </>
+            ) : (
+              <Form method="post" style={{ display: "contents" }}>
+                <Button
+                  disabled={isGoogleEnabled === false}
+                  prefix={<GoogleIcon size={22} />}
+                  color="primary"
+                  css={{ height: theme.spacing[15] }}
+                  formAction={authPath({ provider: "google" })}
+                >
+                  Sign in with Google
+                </Button>
+                <Button
+                  disabled={isGithubEnabled === false}
+                  prefix={<GithubIcon size={22} fill="currentColor" />}
+                  color="ghost"
+                  css={{
+                    border: `1px solid ${theme.colors.borderDark}`,
+                    height: theme.spacing[15],
+                  }}
+                  formAction={authPath({ provider: "github" })}
+                >
+                  Sign in with GitHub
+                </Button>
+              </Form>
+            )}
             {isSecretLoginEnabled && (
               <SecretLogin devPlanNames={devPlanNames} />
             )}
