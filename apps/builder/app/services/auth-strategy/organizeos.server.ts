@@ -1,6 +1,10 @@
 import type { AppContext } from "@webstudio-is/trpc-interface/index.server";
 import { resolveOrCreateUserByEmail } from "~/shared/db/user.server";
-import { deriveProjectId } from "~/shared/db/provision.server";
+import {
+  deriveProjectId,
+  deriveSyntheticUserId,
+} from "~/shared/db/provision.server";
+import { syncOrgOwnerPlan } from "~/shared/db/organizeos-plan.server";
 import { builderUrl } from "~/shared/router-utils";
 import { verifyOrganizeosSsoToken } from "./organizeos-token.server";
 
@@ -69,7 +73,36 @@ export const organizeosSsoLogin = async (
   // 3. Resolve (or lazily create) the Webstudio dashboard User for this admin.
   const user = await resolveOrCreateUserByEmail(context, claims.email);
 
+  // 4. Refresh the org's plan from the signed entitlements. Provisioning is the
+  //    only other time they are set, so without this a tier change would never
+  //    reach the builder. Entry is the right moment: it is when the entitlement
+  //    is about to be used, and OrganizeOS is already asserting the org's
+  //    current state here.
+  await refreshOrgEntitlements(context, claims);
+
   return { userId: user.id, createdAt: Date.now() };
+};
+
+/**
+ * Apply the token's entitlements to the org's workspace owner. Deliberately
+ * fail-open: the org already has a provisioned plan, so a billing-sync hiccup
+ * must not cost an admin their login.
+ */
+const refreshOrgEntitlements = async (
+  context: AppContext,
+  claims: { organizationId: string; entitlements?: { collections: boolean } }
+): Promise<void> => {
+  if (claims.entitlements === undefined) {
+    return;
+  }
+  try {
+    await syncOrgOwnerPlan(context, {
+      serviceUserId: deriveSyntheticUserId(claims.organizationId),
+      entitlements: claims.entitlements,
+    });
+  } catch (error) {
+    console.error("[organizeosSsoLogin] entitlement refresh failed", error);
+  }
 };
 
 /**

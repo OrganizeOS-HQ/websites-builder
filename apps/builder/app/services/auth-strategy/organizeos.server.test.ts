@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { generateKeyPairSync, sign as cryptoSign } from "node:crypto";
-import { deriveProjectId } from "~/shared/db/provision.server";
+import {
+  deriveProjectId,
+  deriveSyntheticUserId,
+} from "~/shared/db/provision.server";
 import {
   consumeSsoJti,
   organizeosSsoLogin,
@@ -15,6 +18,10 @@ vi.mock("~/shared/db/user.server", () => ({
   resolveOrCreateUserByEmail: vi.fn(async () => ({ id: "resolved-user-id" })),
 }));
 
+vi.mock("~/shared/db/organizeos-plan.server", () => ({
+  syncOrgOwnerPlan: vi.fn(async () => undefined),
+}));
+
 const { publicKey, privateKey } = generateKeyPairSync("ec", {
   namedCurve: "P-256",
 });
@@ -26,7 +33,7 @@ const publicKeyPem = publicKey.export({
 const b64url = (value: unknown) =>
   Buffer.from(JSON.stringify(value)).toString("base64url");
 
-const makeToken = (jti = "nonce-1") => {
+const makeToken = (jti = "nonce-1", extraClaims: object = {}) => {
   const header = b64url({ alg: "ES256", typ: "JWT" });
   const payload = b64url({
     iss: "organizeos",
@@ -36,6 +43,7 @@ const makeToken = (jti = "nonce-1") => {
     organizationId: "org-1",
     exp: Math.floor(Date.now() / 1000) + 60,
     jti,
+    ...extraClaims,
   });
   const signature = cryptoSign("sha256", Buffer.from(`${header}.${payload}`), {
     key: privateKey,
@@ -119,6 +127,71 @@ describe("organizeosSsoLogin", () => {
       organizeosSsoLogin(context as never, makeToken("replayed"), publicKeyPem)
     ).rejects.toThrow();
     expect(resolveOrCreateUserByEmail).not.toHaveBeenCalled();
+  });
+
+  test("refreshes the org's plan from the signed entitlements", async () => {
+    const { syncOrgOwnerPlan } = await import(
+      "~/shared/db/organizeos-plan.server"
+    );
+    const context = {
+      postgrest: {
+        client: { from: () => ({ insert: async () => ({ error: null }) }) },
+      },
+    };
+
+    await organizeosSsoLogin(
+      context as never,
+      makeToken("nonce-ent", { entitlements: { collections: true } }),
+      publicKeyPem
+    );
+
+    // Applied to the org's workspace owner, not the admin signing in.
+    expect(syncOrgOwnerPlan).toHaveBeenCalledWith(context, {
+      serviceUserId: deriveSyntheticUserId("org-1"),
+      entitlements: { collections: true },
+    });
+  });
+
+  test("leaves the provisioned plan alone when the token carries no entitlements", async () => {
+    const { syncOrgOwnerPlan } = await import(
+      "~/shared/db/organizeos-plan.server"
+    );
+    const context = {
+      postgrest: {
+        client: { from: () => ({ insert: async () => ({ error: null }) }) },
+      },
+    };
+
+    await organizeosSsoLogin(
+      context as never,
+      makeToken("nonce-none"),
+      publicKeyPem
+    );
+
+    expect(syncOrgOwnerPlan).not.toHaveBeenCalled();
+  });
+
+  test("still logs the admin in when the entitlement refresh fails", async () => {
+    const { syncOrgOwnerPlan } = await import(
+      "~/shared/db/organizeos-plan.server"
+    );
+    vi.mocked(syncOrgOwnerPlan).mockRejectedValueOnce(
+      new Error("postgrest down")
+    );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const context = {
+      postgrest: {
+        client: { from: () => ({ insert: async () => ({ error: null }) }) },
+      },
+    };
+
+    const result = await organizeosSsoLogin(
+      context as never,
+      makeToken("nonce-fail", { entitlements: { collections: true } }),
+      publicKeyPem
+    );
+
+    expect(result.userId).toBe("resolved-user-id");
   });
 });
 
