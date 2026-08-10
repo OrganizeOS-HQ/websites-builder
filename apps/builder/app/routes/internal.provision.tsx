@@ -8,6 +8,7 @@ import {
   provisionOrgWorkspace,
   deprovisionOrgWorkspace,
 } from "~/shared/db/provision.server";
+import { defaultOrgEntitlements } from "~/shared/db/organizeos-plan.server";
 
 // The internal provisioning route acts as the system (direct inserts as the
 // synthetic owner), so it needs only a Postgres client, not the request-auth
@@ -69,6 +70,12 @@ const provisionInput = z.object({
   // (Phase 4d). Omitted -> the workspace is provisioned without presets.
   readToken: z.string().min(1).optional(),
   apiBaseUrl: z.string().url().optional(),
+  // The org's paid capabilities, as resolved by OrganizeOS (the only authority
+  // on what an org is entitled to). Absent -> no paid capability: an older
+  // caller, or one that cannot resolve entitlements, must never grant one.
+  entitlements: z
+    .object({ collections: z.boolean() })
+    .default(defaultOrgEntitlements),
 });
 
 const deprovisionInput = z.object({
@@ -116,6 +123,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     organizationId: parsed.data.organizationId,
     orgName: parsed.data.orgName,
     adminEmails: parsed.data.adminEmails,
+    entitlements: parsed.data.entitlements,
     siteData:
       parsed.data.readToken !== undefined &&
       parsed.data.apiBaseUrl !== undefined

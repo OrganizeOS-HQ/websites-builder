@@ -4,6 +4,11 @@ import { createBuild } from "@webstudio-is/project-build/index.server";
 import { resolveOrCreateUserByEmail } from "./user.server";
 import { seedProjectResourcePresets } from "./resource-presets.server";
 import { seedSignupFormPage } from "./signup-form-preset.server";
+import {
+  defaultOrgEntitlements,
+  syncOrgOwnerPlan,
+  type OrgEntitlements,
+} from "./organizeos-plan.server";
 
 /**
  * OrganizeOS multi-tenant provisioning (Websites 2.0, Phase 4b).
@@ -82,6 +87,10 @@ export type ProvisionResult = {
  * project is seeded with the OrganizeOS data Resource presets (Phase 4d). This
  * is idempotent, so it also re-syncs the presets (e.g. a rotated token) on
  * re-provision.
+ *
+ * `entitlements` are the org's paid capabilities as resolved by OrganizeOS.
+ * They become the synthetic owner's plan, which is what the builder's own
+ * feature gates read. Omitted means no paid capability (deny by default).
  */
 export const provisionOrgWorkspace = async (
   context: AppContext,
@@ -90,11 +99,13 @@ export const provisionOrgWorkspace = async (
     orgName,
     adminEmails,
     siteData,
+    entitlements = defaultOrgEntitlements,
   }: {
     organizationId: string;
     orgName: string;
     adminEmails: string[];
     siteData?: { readToken: string; apiBaseUrl: string };
+    entitlements?: OrgEntitlements;
   }
 ): Promise<ProvisionResult> => {
   const client = context.postgrest.client;
@@ -115,6 +126,11 @@ export const provisionOrgWorkspace = async (
   if (userResult.error) {
     throw userResult.error;
   }
+
+  // 1b. The owner's plan carries the org's entitlements. It has to follow the
+  //     User row (TransactionLog references it) and precede everything the
+  //     builder gates on a plan.
+  await syncOrgOwnerPlan(context, { serviceUserId, entitlements });
 
   // 2. Workspace owned by the synthetic account. isDefault=true is safe: the
   //    synthetic account owns exactly one workspace.

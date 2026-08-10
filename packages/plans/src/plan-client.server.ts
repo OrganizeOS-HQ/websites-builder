@@ -163,7 +163,15 @@ export const getPlanInfo = async (
     );
   }
 
-  const allProducts = await getProductCache(postgrest);
+  let allProducts = await getProductCache(postgrest);
+  // A product created after this server started is absent from the cache.
+  // Refetch once rather than silently resolving its owner to the free tier.
+  // A dangling id cannot cause a refetch loop: TransactionLog.productId is a
+  // foreign key that is nulled when a product is deleted.
+  if (productIds.some((productId) => allProducts.has(productId) === false)) {
+    productCachePromise = undefined;
+    allProducts = await getProductCache(postgrest);
+  }
   const productById = new Map(
     productIds.flatMap((id) => {
       const product = allProducts.get(id);
