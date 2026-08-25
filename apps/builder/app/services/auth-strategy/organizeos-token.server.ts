@@ -33,6 +33,29 @@ export type OrganizeosSsoClaims = {
   exp: number;
   iat?: number;
   jti: string;
+  /**
+   * The org's paid capabilities at the moment the token was signed. Optional:
+   * the two systems deploy independently, so a token minted by an older
+   * OrganizeOS simply carries none and leaves the provisioned plan alone.
+   */
+  entitlements?: { collections: boolean };
+};
+
+/**
+ * Read the entitlements claim, which is only trustworthy because the signature
+ * has already been verified. Anything not exactly shaped is treated as absent
+ * rather than as "nothing granted": a shape mismatch means the two sides are on
+ * different versions, and silently downgrading a paying org over that would be
+ * worse than leaving its provisioned plan in place.
+ */
+const readEntitlements = (
+  value: unknown
+): OrganizeosSsoClaims["entitlements"] => {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+  const { collections } = value as { collections?: unknown };
+  return typeof collections === "boolean" ? { collections } : undefined;
 };
 
 const EXPECTED_ALG = "ES256";
@@ -141,5 +164,6 @@ export const verifyOrganizeosSsoToken = (
     exp: payload.exp,
     iat: payload.iat,
     jti: payload.jti,
+    entitlements: readEntitlements(payload.entitlements),
   };
 };

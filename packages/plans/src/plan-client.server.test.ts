@@ -140,6 +140,26 @@ describe("getPlanInfo (msw)", () => {
     const result = await getPlanInfo(["user-1"], testContext);
     expect(result.get("user-1")?.purchases[0].planName).toBe("Pro");
   });
+
+  test("a product missing from the cache is refetched, not treated as free", async () => {
+    vi.stubEnv("PLANS", JSON.stringify([]));
+    let productFetches = 0;
+    server.use(
+      db.get("UserProduct", () => json([proUserProduct])),
+      db.get("Product", () => {
+        productFetches += 1;
+        // First read is the stale snapshot: the product this user holds was
+        // created after it was taken.
+        return json(productFetches === 1 ? [] : [proProduct]);
+      })
+    );
+
+    const result = await getPlanInfo(["user-1"], testContext);
+    expect(productFetches).toBe(2);
+    expect(result.get("user-1")?.planFeatures.maxDomainsAllowedPerUser).toBe(
+      10
+    );
+  });
 });
 
 /** Full-featured plan for use in tests — all booleans true, numeric limits at max */

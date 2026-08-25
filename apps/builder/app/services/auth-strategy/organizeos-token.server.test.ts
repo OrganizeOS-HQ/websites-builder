@@ -59,6 +59,34 @@ describe("verifyOrganizeosSsoToken", () => {
     expect(claims.jti).toBe("nonce-1");
   });
 
+  test("returns the entitlements claim when present", () => {
+    const token = signES256(
+      { alg: "ES256", typ: "JWT" },
+      { ...validClaims(), entitlements: { collections: true } }
+    );
+    expect(verify(token).entitlements).toEqual({ collections: true });
+  });
+
+  test("a token without entitlements carries none", () => {
+    const token = signES256({ alg: "ES256", typ: "JWT" }, validClaims());
+    expect(verify(token).entitlements).toBeUndefined();
+  });
+
+  test.each([
+    ["a non-object", "yes"],
+    ["a non-boolean flag", { collections: "true" }],
+    ["an empty object", {}],
+  ])(
+    "treats %s entitlements claim as absent rather than as a downgrade",
+    (_label, entitlements) => {
+      const token = signES256(
+        { alg: "ES256", typ: "JWT" },
+        { ...validClaims(), entitlements }
+      );
+      expect(verify(token).entitlements).toBeUndefined();
+    }
+  );
+
   // --- Algorithm-confusion defenses ---
 
   test("rejects alg:none (unsigned)", () => {
