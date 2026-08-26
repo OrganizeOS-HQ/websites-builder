@@ -16,11 +16,12 @@ import { redirect, setNoStoreToRedirect } from "~/services/no-store-redirect";
  * establishes the standard dashboard session, then we redirect into the
  * dashboard.
  *
- * The header guards below mirror auth.github.tsx as defense-in-depth. For a
- * top-level document POST they are largely no-ops; the real CSRF/forgery
- * defense is the signed, audience-bound, single-use, short-exp token whose
- * `sub` is bound to the admin, so the session can only ever land in that
- * admin's own dashboard.
+ * Unlike the OAuth routes, this endpoint EXISTS to receive a cross-site POST
+ * (the OrganizeOS app is a different origin), so the cross-origin guard runs
+ * in strip-cookies-only mode rather than throwing: ambient credentials are
+ * still discarded, and the actual CSRF/forgery defense is the signed,
+ * audience-bound, single-use, short-exp token whose `sub` is bound to the
+ * admin, so the session can only ever land in that admin's own dashboard.
  */
 export default function OrganizeosSso() {
   return null;
@@ -31,7 +32,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     throw new Response("Not Found", { status: 404 });
   }
 
-  preventCrossOriginCookie(request);
+  // Strip cookies but do not throw: this route is a deliberate cross-site
+  // POST, and it authenticates by the token in the body, never by cookies.
+  preventCrossOriginCookie(request, false);
 
   // Land directly in the org's project builder (the org has exactly one
   // project, derived from the token's organizationId), skipping the fork
