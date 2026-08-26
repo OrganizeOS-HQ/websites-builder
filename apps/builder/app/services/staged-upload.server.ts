@@ -1,3 +1,4 @@
+import * as os from "node:os";
 import * as path from "node:path";
 import { FileStore } from "@tus/file-store";
 import { S3Store } from "@tus/s3-store";
@@ -13,7 +14,11 @@ import { assertProjectBuildPermit as defaultAssertProjectBuildPermit } from "./p
 
 const stagedUploadExpiration = 60 * 60 * 1000;
 const authTokenHeader = "x-auth-token";
-const localUploadDirectory = path.join(process.cwd(), ".webstudio", "uploads");
+// Staged uploads are short-lived (1h expiration), so the OS temp dir is the
+// right home for the local fallback store. The previous cwd-relative location
+// crashed serverless deployments: the bundle directory is read-only there, and
+// the failed mkdir took the whole process down with it.
+const localUploadDirectory = path.join(os.tmpdir(), "webstudio-staged-uploads");
 const s3Env = [
   "S3_ENDPOINT",
   "S3_REGION",
