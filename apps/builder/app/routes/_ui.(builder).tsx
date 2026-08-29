@@ -252,8 +252,9 @@ export const loader = async (loaderArgs: LoaderFunctionArgs) => {
       // Allow blob: workers so hdr-color-input can spawn its inline canvas-rendering worker.
       // blob: workers can only be created from JS already running in this page, so the
       // attack surface is no wider than allowing eval.
+      // help.webstudio.is dropped with the upstream help dialog it framed.
       "Content-Security-Policy",
-      `frame-src ${url.origin}/canvas https://app.goentri.com/ https://help.webstudio.is/; worker-src blob:`
+      `frame-src ${url.origin}/canvas https://app.goentri.com/; worker-src blob:`
     );
 
     return json(

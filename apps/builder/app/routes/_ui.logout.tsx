@@ -12,6 +12,7 @@ import { lazy } from "react";
 import { allowedDestinations } from "~/services/destinations.server";
 import { privateNoStoreResponseHeaders } from "~/services/cache-control.server";
 export { ErrorBoundary } from "~/shared/error/error-boundary";
+import { productName } from "~/shared/branding";
 
 const logoutCaller = createCallerFactory(logoutRouter);
 
@@ -20,7 +21,7 @@ const debug = createDebug(import.meta.url);
 export const meta: MetaFunction<typeof loader> = () => {
   const metas: ReturnType<MetaFunction> = [];
 
-  metas.push({ title: "Webstudio Logout" });
+  metas.push({ title: `${productName} Logout` });
 
   return metas;
 };

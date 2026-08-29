@@ -4,9 +4,7 @@ import {
 } from "./panel-banner";
 import { StoryGrid, StorySection } from "./storybook";
 import { Text } from "./text";
-import { Link } from "./link";
 import { Flex } from "./flex";
-import { buttonStyle } from "./button";
 import {
   AlertIcon,
   InfoCircleIcon,
@@ -26,21 +24,9 @@ export const PanelBanner = () => {
           <PanelBannerComponent css={{ width: 300 }}>
             <Text variant="regularBold">Free domains limit reached</Text>
             <Text variant="regular">
-              You have reached the limit of 5 custom domains on your account.{" "}
-              <Text variant="regularBold" inline>
-                Upgrade to a Pro account
-              </Text>{" "}
-              to add unlimited domains.
+              You have reached the limit of 5 custom domains on your account.
+              Unlimited domains are not included in your plan.
             </Text>
-            <Link
-              className={buttonStyle({ color: "gradient" })}
-              color="contrast"
-              underline="none"
-              href="https://webstudio.is/pricing"
-              target="_blank"
-            >
-              Upgrade
-            </Link>
           </PanelBannerComponent>
         </StoryGrid>
       </StorySection>

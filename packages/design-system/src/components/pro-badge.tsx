@@ -2,8 +2,6 @@ import type { ReactNode } from "react";
 import { css, theme, type CSS } from "../stitches.config";
 import { textVariants } from "./text";
 
-const pricingUrl = "https://webstudio.is/pricing";
-
 const style = css(textVariants.labels, {
   display: "inline-grid",
   placeItems: "center",
@@ -18,19 +16,17 @@ const style = css(textVariants.labels, {
   // @todo doesn't work in tooltips, needs a workaround
   textOverflow: "ellipsis",
   background: theme.colors.foregroundTextSubtle,
-  textDecoration: "none",
-  cursor: "pointer",
-  pointerEvents: "auto",
-  "&:focus-visible": {
-    outline: `2px solid ${theme.colors.borderFocus}`,
-    outlineOffset: 1,
-  },
   "@supports (text-box-trim: trim-both) and (text-box-edge: cap alphabetic)": {
     textBoxTrim: "trim-both",
     textBoxEdge: "cap alphabetic",
   },
 });
 
+/**
+ * A plan badge. Upstream this linked to the Webstudio pricing page; plans here
+ * are OrganizeOS org entitlements with no self-serve checkout, so the badge is
+ * a label and nothing else.
+ */
 export const ProBadge = ({
   css,
   children,
@@ -38,14 +34,5 @@ export const ProBadge = ({
   children: ReactNode;
   css?: CSS;
 }) => {
-  return (
-    <a
-      className={style({ css })}
-      href={pricingUrl}
-      target="_blank"
-      rel="noreferrer"
-    >
-      {children}
-    </a>
-  );
+  return <span className={style({ css })}>{children}</span>;
 };

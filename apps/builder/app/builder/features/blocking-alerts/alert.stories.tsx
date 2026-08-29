@@ -7,7 +7,7 @@ export const BlockingAlerts = () => (
   <StorySection title="Blocking Alerts">
     <Alert
       message={
-        "Your browser window is too small. Resize your browser to at least 900px wide to continue building with Webstudio."
+        "Your browser window is too small. Resize your browser to at least 900px wide to continue building with OrganizeOS Websites."
       }
     />
   </StorySection>

@@ -2,11 +2,12 @@ import { lazy } from "react";
 import { type MetaFunction } from "@remix-run/react";
 import { ClientOnly } from "~/shared/client-only";
 export { ErrorBoundary } from "~/shared/error/error-boundary";
+import { productName } from "~/shared/branding";
 
 export const meta = () => {
   const metas: ReturnType<MetaFunction> = [];
 
-  metas.push({ title: "Webstudio Dashboard | Search" });
+  metas.push({ title: `${productName} Dashboard | Search` });
 
   return metas;
 };

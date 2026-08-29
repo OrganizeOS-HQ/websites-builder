@@ -150,8 +150,6 @@ export const toggleActiveSidebarPanel = (panel: SidebarPanelName) => {
   setActiveSidebarPanel(panel === currentPanel ? "none" : panel);
 };
 
-export const $remoteDialog = atom<{ title: string; url: string } | undefined>();
-
 // Track which grid track (column/row) is being edited in the style panel
 export type GridEditingTrack = {
   type: "column" | "row";
