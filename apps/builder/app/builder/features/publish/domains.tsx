@@ -8,7 +8,6 @@ import {
   InputField,
   styled,
   Flex,
-  Link,
   SmallIconButton,
   NestedInputButton,
   Separator,
@@ -456,15 +455,7 @@ const DomainItem = ({
               <Text>
                 Visit the admin console of your domain registrar (the website
                 you purchased your domain from) and create one CNAME record and
-                one TXT record with the values shown below.{" "}
-                <Link
-                  color="inherit"
-                  href="https://docs.webstudio.is/university/foundations/publishing-and-custom-domains"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Learn more.
-                </Link>
+                one TXT record with the values shown below.
               </Text>
             }
           >

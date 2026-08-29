@@ -462,7 +462,7 @@ const AssetInfoContent = ({
     downloadError =
       "Unavailable in View mode. Switch to Edit to download assets.";
   } else if (canDownloadAssets === false) {
-    downloadError = "Upgrade to Pro to download assets.";
+    downloadError = "Downloading assets is not included in your plan.";
   }
 
   const isImage = asset.type === "image";

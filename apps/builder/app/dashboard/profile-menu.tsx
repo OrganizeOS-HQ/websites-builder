@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { ChevronDownIcon, UpgradeIcon } from "@webstudio-is/icons";
+import { ChevronDownIcon } from "@webstudio-is/icons";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -104,17 +104,6 @@ export const ProfileMenu = ({ user }: { user: User }) => {
               {purchase.planName}
             </DropdownMenuLabel>
           )
-        )}
-        {purchases.length === 0 && (
-          <DropdownMenuItem
-            onSelect={() => {
-              window.open("https://webstudio.is/pricing");
-            }}
-            css={{ gap: theme.spacing[3] }}
-          >
-            <UpgradeIcon />
-            <div>Upgrade</div>
-          </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => navigate(logoutPath())}>

@@ -8,6 +8,7 @@ import { z } from "zod";
 import { preventCrossOriginCookie } from "~/services/no-cross-origin-cookie";
 import { isBuilder } from "~/shared/router-utils";
 export { ErrorBoundary } from "~/shared/error/error-boundary";
+import { productName } from "~/shared/branding";
 
 const sessionError = z.object({
   message: z.string(),
@@ -17,7 +18,7 @@ const sessionError = z.object({
 export const meta: MetaFunction<typeof loader> = () => {
   const metas: ReturnType<MetaFunction> = [];
 
-  metas.push({ title: "Webstudio Error" });
+  metas.push({ title: `${productName} Error` });
 
   return metas;
 };

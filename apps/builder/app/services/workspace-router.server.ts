@@ -189,9 +189,7 @@ export const workspaceRouter = router({
           throw inviteeResult.error;
         }
         if (inviteeResult.data === null) {
-          throw new Error(
-            "No Webstudio account found. The user needs to sign up first."
-          );
+          throw new Error("No account found. The user needs to sign up first.");
         }
         const existingMemberResult = await ctx.postgrest.client
           .from("WorkspaceMember")

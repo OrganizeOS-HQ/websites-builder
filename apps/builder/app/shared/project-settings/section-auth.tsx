@@ -6,7 +6,6 @@ import {
   Grid,
   InputErrorsTooltip,
   InputField,
-  Link,
   List,
   ListItem,
   ProBadge,
@@ -17,7 +16,6 @@ import {
   Text,
   theme,
   Tooltip,
-  buttonStyle,
 } from "@webstudio-is/design-system";
 import { InfoCircleIcon, TrashIcon } from "@webstudio-is/icons";
 import { useStore } from "@nanostores/react";
@@ -32,6 +30,7 @@ import { $permissions } from "~/shared/nano-states";
 import { $pages } from "~/shared/sync/data-stores";
 import { serverSyncStore } from "~/shared/sync/sync-stores";
 import { getExistingRoutePaths, sectionSpacing } from "./utils";
+import { planUpgradeHint } from "~/shared/branding";
 
 const parseAuthRoutes = (auth: string | undefined) => {
   return parseWsAuth(auth ?? "");
@@ -201,19 +200,10 @@ export const SectionAuth = () => {
                 <>
                   <br />
                   <Text>
-                    Authentication is a Pro feature. You can publish to staging
-                    for free; upgrade to Pro to publish to custom domains.
+                    Authentication is not included in your plan. You can still
+                    publish to staging; publishing to custom domains needs a
+                    plan that includes it. {planUpgradeHint}
                   </Text>
-                  <Link
-                    className={buttonStyle({ color: "gradient" })}
-                    css={{ marginTop: theme.spacing[5], width: "100%" }}
-                    color="contrast"
-                    underline="none"
-                    target="_blank"
-                    href="https://webstudio.is/pricing"
-                  >
-                    Upgrade
-                  </Link>
                 </>
               )}
             </>

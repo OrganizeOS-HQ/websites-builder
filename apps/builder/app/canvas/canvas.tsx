@@ -251,6 +251,15 @@ const ContentEditMode = (): ReactNode => {
   return;
 };
 
+/**
+ * OrganizeOS fork: upstream ships a "Built with Webstudio" badge template that
+ * puts an upstream ad on the customer's published site. Drop it from the
+ * palette here rather than editing @webstudio-is/sdk, which this fork keeps
+ * byte-identical to upstream (docs/ORGANIZEOS-FORK.md §1).
+ */
+const { builtWithWebstudio: _builtWithWebstudio, ...organizeosCoreTemplates } =
+  coreTemplates;
+
 export const Canvas = () => {
   useCanvasStore();
   const isDesignMode = useStore($isDesignMode);
@@ -260,7 +269,7 @@ export const Canvas = () => {
     registerComponentLibrary({
       components: {},
       metas: coreMetas,
-      templates: coreTemplates,
+      templates: organizeosCoreTemplates,
     });
     registerComponentLibrary({
       components: baseComponents,

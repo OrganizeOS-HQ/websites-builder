@@ -4,13 +4,12 @@ import {
   Tooltip,
   Text,
   theme,
-  Link,
-  buttonStyle,
   Checkbox,
 } from "@webstudio-is/design-system";
 
 import { $project } from "~/shared/sync/data-stores";
 import { $permissions } from "~/shared/nano-states";
+import { planUpgradeHint } from "~/shared/branding";
 
 export const domainToPublishName = "domainToPublish[]";
 
@@ -64,17 +63,9 @@ export const DomainCheckbox = (props: DomainCheckboxProps) => {
           <>
             <br />
             <br />
-            Upgrade to Pro account to publish to each domain individually.
+            Publishing to each domain individually is not included in your plan.
             <br /> <br />
-            <Link
-              className={buttonStyle({ color: "gradient" })}
-              color="contrast"
-              underline="none"
-              href="https://webstudio.is/pricing"
-              target="_blank"
-            >
-              Upgrade
-            </Link>
+            {planUpgradeHint}
           </>
         </Flex>
       </Text>
