@@ -1,4 +1,8 @@
 import type { TrpcInterfaceClient } from "@webstudio-is/trpc-interface/index.server";
+import {
+  markBuildPublishStatus,
+  type BuildStatusClient,
+} from "~/shared/db/publish-status.server";
 
 /**
  * OrganizeOS publisher (Websites 2.0 Phase 5, slice 4).
@@ -6,7 +10,8 @@ import type { TrpcInterfaceClient } from "@webstudio-is/trpc-interface/index.ser
  * Implements the deployment publish seam: when an org admin clicks Publish,
  * domain.publish calls deploymentTrpc.publish.mutate. Instead of webstudio's
  * cloud publisher, this dispatches our publish-site GitHub Actions workflow
- * (the executor: CLI sync + build + deploy + pointer-flip callback).
+ * (the executor: CLI sync + build + deploy + pointer-flip callback), which
+ * reports the outcome back through the internal publish-status route.
  *
  * The workflow needs the ORGANIZATION id. The builder does not store it
  * directly, but every org project is owned by its synthetic service account,
@@ -37,6 +42,7 @@ type PostgrestLike = {
         single: () => Promise<{ data: unknown; error: unknown }>;
       };
     };
+    update: ReturnType<BuildStatusClient["from"]>["update"];
   };
 };
 
@@ -91,6 +97,19 @@ export const resolveOrganizationIdForBuild = async (
 };
 
 /**
+ * A publish that never reached the executor would otherwise sit PENDING until
+ * the UI's timeout; mark it FAILED now so the admin sees the outcome at once.
+ * Best-effort: the user-facing error is already decided.
+ */
+const markFailed = async (client: PostgrestLike, buildId: string) => {
+  try {
+    await markBuildPublishStatus(client, { buildId, status: "FAILED" });
+  } catch (error) {
+    console.error("[organizeos-publisher] could not mark build failed", error);
+  }
+};
+
+/**
  * A deploymentTrpc drop-in whose publish dispatches the executor workflow.
  * Errors return generic copy (surfaced in the builder UI).
  */
@@ -101,12 +120,27 @@ export const createOrganizeosPublisher = (
 
   const publisher = {
     publish: {
-      mutate: async (input: { buildId: string }) => {
+      mutate: async (input: {
+        buildId: string;
+        destination?: "saas" | "static";
+      }) => {
+        // The executor deploys the org's live site; a static export build
+        // must never be dispatched as one. Export is hidden for org projects,
+        // this is the server-side guarantee.
+        if (input.destination === "static") {
+          await markFailed(deps.client, input.buildId);
+          return {
+            success: false as const,
+            error: "Static export is not available for OrganizeOS sites.",
+          };
+        }
+
         const organizationId = await resolveOrganizationIdForBuild(
           deps.client,
           input.buildId
         );
         if (organizationId === null) {
+          await markFailed(deps.client, input.buildId);
           return {
             success: false as const,
             error: "This project cannot be published.",
@@ -138,6 +172,7 @@ export const createOrganizeosPublisher = (
             response.status,
             await response.text().catch(() => "")
           );
+          await markFailed(deps.client, input.buildId);
           return {
             success: false as const,
             error: "Publishing could not be started. Please try again.",
