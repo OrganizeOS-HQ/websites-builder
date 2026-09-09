@@ -35,6 +35,7 @@ import {
   subscribeModifierKeys,
   $stagingUsername,
   $stagingPassword,
+  $organizeosSite,
   $user,
 } from "~/shared/nano-states";
 import { $project } from "~/shared/sync/data-stores";
@@ -46,6 +47,7 @@ import { useMount, useUnmount } from "~/shared/hook-utils/use-mount";
 import { subscribeCommands } from "~/builder/shared/commands";
 import { ProjectSettings } from "~/shared/project-settings";
 import type { PlanFeatures, Purchase } from "@webstudio-is/plans";
+import type { OrganizeosSite } from "~/shared/organizeos-site";
 import {
   $activeSidebarPanel,
   $dataLoadingState,
@@ -261,6 +263,7 @@ export type BuilderProps = {
   purchases: Array<Purchase>;
   stagingUsername: string;
   stagingPassword: string;
+  organizeosSite?: OrganizeosSite;
 };
 
 export const Builder = (props: BuilderProps) => {
@@ -271,6 +274,7 @@ export const Builder = (props: BuilderProps) => {
     authTokenPermissions,
     stagingUsername,
     stagingPassword,
+    organizeosSite,
   } = props;
 
   useMount(initBuilderApi);
@@ -284,6 +288,7 @@ export const Builder = (props: BuilderProps) => {
     $authTokenPermissions.set(authTokenPermissions);
     $stagingUsername.set(stagingUsername);
     $stagingPassword.set(stagingPassword);
+    $organizeosSite.set(organizeosSite);
 
     const controller = new AbortController();
 

@@ -83,6 +83,8 @@ import {
   type RestrictedFeature,
 } from "./restricted-features";
 import { planUpgradeHint } from "~/shared/branding";
+import { $organizeosSite } from "~/shared/nano-states";
+import { OrganizeosPublishContent } from "./organizeos-publish";
 
 type ChangeProjectDomainProps = {
   project: Project;
@@ -1155,7 +1157,14 @@ type PublishProps = {
 };
 
 export const PublishButton = ({ projectId }: PublishProps) => {
-  const publishDialog = useStore($publishDialog);
+  const organizeosSite = useStore($organizeosSite);
+  const requestedDialog = useStore($publishDialog);
+  // An OrganizeOS site has no export: the executor is its only publisher, so
+  // the Export view (a keyboard shortcut can still request it) shows Publish.
+  const publishDialog =
+    requestedDialog === "export" && organizeosSite !== undefined
+      ? "publish"
+      : requestedDialog;
   const authTokenPermissions = useStore($authTokenPermissions);
   const { canPublishToStagingOnly } = useStore($permissions);
   const isPublishEnabled =
@@ -1229,7 +1238,14 @@ export const PublishButton = ({ projectId }: PublishProps) => {
             >
               Publish
             </PopoverTitle>
-            <Content projectId={projectId} onExportClick={handleExportClick} />
+            {organizeosSite === undefined ? (
+              <Content
+                projectId={projectId}
+                onExportClick={handleExportClick}
+              />
+            ) : (
+              <OrganizeosPublishContent site={organizeosSite} />
+            )}
           </>
         )}
       </PopoverContent>

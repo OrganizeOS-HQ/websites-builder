@@ -25,12 +25,17 @@ import {
   $authToken,
   $authTokenPermissions,
   $isDesignMode,
+  $organizeosSite,
 } from "~/shared/nano-states";
 import { emitCommand } from "~/builder/shared/commands";
 import { MenuButton } from "./menu-button";
 import { $openProjectSettings } from "~/shared/nano-states/project-settings";
 import { getSetting, setSetting } from "~/builder/shared/client-settings";
-import { sourceCodeLabel, sourceCodeUrl } from "~/shared/branding";
+import {
+  platformName,
+  sourceCodeLabel,
+  sourceCodeUrl,
+} from "~/shared/branding";
 
 const ViewMenuItem = () => {
   const navigatorLayout = getSetting("navigatorLayout");
@@ -69,6 +74,7 @@ export const Menu = ({ defaultOpen }: { defaultOpen?: boolean } = {}) => {
   const authTokenPermission = useStore($authTokenPermissions);
   const authToken = useStore($authToken);
   const isDesignMode = useStore($isDesignMode);
+  const organizeosSite = useStore($organizeosSite);
 
   const isPublishEnabled = authPermit === "own" || authPermit === "admin";
 
@@ -89,13 +95,25 @@ export const Menu = ({ defaultOpen }: { defaultOpen?: boolean } = {}) => {
     <DropdownMenu modal={false} defaultOpen={defaultOpen}>
       <MenuButton />
       <DropdownMenuContent sideOffset={4} collisionPadding={4} width="regular">
-        <DropdownMenuItem
-          onSelect={() => {
-            window.location.href = dashboardUrl({ origin: window.origin });
-          }}
-        >
-          Dashboard
-        </DropdownMenuItem>
+        {/* OrganizeOS site: the org's Website area in OrganizeOS is the
+            management surface, not the fork dashboard (SSO skips it). */}
+        {organizeosSite === undefined ? (
+          <DropdownMenuItem
+            onSelect={() => {
+              window.location.href = dashboardUrl({ origin: window.origin });
+            }}
+          >
+            Dashboard
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            onSelect={() => {
+              window.location.href = organizeosSite.manageUrl;
+            }}
+          >
+            Back to {platformName}
+          </DropdownMenuItem>
+        )}
         <Tooltip side="right" content={undefined}>
           <DropdownMenuItem
             onSelect={() => {
@@ -162,20 +180,25 @@ export const Menu = ({ defaultOpen }: { defaultOpen?: boolean } = {}) => {
           </DropdownMenuItemRightSlot>
         </DropdownMenuItem>
 
-        <Tooltip
-          side="right"
-          sideOffset={10}
-          content={disabledShareTooltipContent}
-        >
-          <DropdownMenuItem
-            onSelect={() => {
-              $isShareDialogOpen.set(true);
-            }}
-            disabled={isShareEnabled === false}
+        {/* An OrganizeOS site is shared through org membership, published
+            only by the executor and lives in exactly one project, so Share,
+            Export and Clone are not offered for it. */}
+        {organizeosSite === undefined && (
+          <Tooltip
+            side="right"
+            sideOffset={10}
+            content={disabledShareTooltipContent}
           >
-            Share
-          </DropdownMenuItem>
-        </Tooltip>
+            <DropdownMenuItem
+              onSelect={() => {
+                $isShareDialogOpen.set(true);
+              }}
+              disabled={isShareEnabled === false}
+            >
+              Share
+            </DropdownMenuItem>
+          </Tooltip>
+        )}
 
         <Tooltip
           side="right"
@@ -195,58 +218,62 @@ export const Menu = ({ defaultOpen }: { defaultOpen?: boolean } = {}) => {
           </DropdownMenuItem>
         </Tooltip>
 
-        <Tooltip
-          side="right"
-          sideOffset={10}
-          content={disabledPublishTooltipContent}
-        >
-          <DropdownMenuItem
-            onSelect={() => {
-              $publishDialog.set("export");
-            }}
-            disabled={isPublishEnabled === false}
+        {organizeosSite === undefined && (
+          <Tooltip
+            side="right"
+            sideOffset={10}
+            content={disabledPublishTooltipContent}
           >
-            Export
-            <DropdownMenuItemRightSlot>
-              <Kbd value={["shift", "E"]} />
-            </DropdownMenuItemRightSlot>
-          </DropdownMenuItem>
-        </Tooltip>
+            <DropdownMenuItem
+              onSelect={() => {
+                $publishDialog.set("export");
+              }}
+              disabled={isPublishEnabled === false}
+            >
+              Export
+              <DropdownMenuItemRightSlot>
+                <Kbd value={["shift", "E"]} />
+              </DropdownMenuItemRightSlot>
+            </DropdownMenuItem>
+          </Tooltip>
+        )}
 
-        <Tooltip
-          side="right"
-          sideOffset={10}
-          content={
-            authTokenPermission.canClone === false
-              ? "Cloning has been disabled by the project owner"
-              : undefined
-          }
-        >
-          <DropdownMenuItem
-            onSelect={() => {
-              if ($authToken.get() === undefined) {
-                $isCloneDialogOpen.set(true);
-                return;
-              }
-            }}
-            disabled={authTokenPermission.canClone === false}
-            asChild={cloneIsExternal}
+        {organizeosSite === undefined && (
+          <Tooltip
+            side="right"
+            sideOffset={10}
+            content={
+              authTokenPermission.canClone === false
+                ? "Cloning has been disabled by the project owner"
+                : undefined
+            }
           >
-            {cloneIsExternal ? (
-              <a
-                className={menuItemCss()}
-                href={cloneProjectUrl({
-                  origin: window.origin,
-                  sourceAuthToken: authToken,
-                })}
-              >
-                Clone
-              </a>
-            ) : (
-              "Clone"
-            )}
-          </DropdownMenuItem>
-        </Tooltip>
+            <DropdownMenuItem
+              onSelect={() => {
+                if ($authToken.get() === undefined) {
+                  $isCloneDialogOpen.set(true);
+                  return;
+                }
+              }}
+              disabled={authTokenPermission.canClone === false}
+              asChild={cloneIsExternal}
+            >
+              {cloneIsExternal ? (
+                <a
+                  className={menuItemCss()}
+                  href={cloneProjectUrl({
+                    origin: window.origin,
+                    sourceAuthToken: authToken,
+                  })}
+                >
+                  Clone
+                </a>
+              ) : (
+                "Clone"
+              )}
+            </DropdownMenuItem>
+          </Tooltip>
+        )}
 
         <DropdownMenuSeparator />
 

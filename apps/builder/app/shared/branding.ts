@@ -13,7 +13,12 @@ export const productName = "OrganizeOS Websites";
 /** The platform that owns accounts, plans and support. */
 export const platformName = "OrganizeOS";
 
-/** Platform home, used where the builder has to hand a user back to OrganizeOS. */
+/**
+ * Platform home, used where the builder has to hand a user back to OrganizeOS.
+ * The production default; a deployment overrides it with ORGANIZEOS_APP_URL.
+ * Server code reads `env.ORGANIZEOS_APP_URL` (which falls back to this) and
+ * passes the result down with loader data, so the client never needs the env.
+ */
 export const platformUrl = "https://app.organizeos.org";
 
 /**

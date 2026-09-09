@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { platformUrl } from "~/shared/branding";
 
 const environment = z.object({
   // Authentication
@@ -37,6 +38,14 @@ const environment = z.object({
   // cloud publisher.
   ORGANIZEOS_PUBLISH_REPO: z.string().optional(),
   ORGANIZEOS_PUBLISH_GITHUB_TOKEN: z.string().optional(),
+
+  // The OrganizeOS app the builder hands users back to (login page, the
+  // builder menu, the org's Website area). Defaults to production.
+  ORGANIZEOS_APP_URL: z
+    .string()
+    .url()
+    .optional()
+    .transform((value) => (value ?? platformUrl).replace(/\/+$/, "")),
 
   PORT: z
     .string()
@@ -113,6 +122,7 @@ const rawEnv = {
   ORGANIZEOS_SSO_PUBLIC_KEY: process.env.ORGANIZEOS_SSO_PUBLIC_KEY,
   ORGANIZEOS_PUBLISH_REPO: process.env.ORGANIZEOS_PUBLISH_REPO,
   ORGANIZEOS_PUBLISH_GITHUB_TOKEN: process.env.ORGANIZEOS_PUBLISH_GITHUB_TOKEN,
+  ORGANIZEOS_APP_URL: process.env.ORGANIZEOS_APP_URL,
   PORT: process.env.PORT,
   MAX_UPLOAD_SIZE: process.env.MAX_UPLOAD_SIZE,
   S3_ENDPOINT: process.env.S3_ENDPOINT,

@@ -38,6 +38,7 @@ import {
 } from "~/services/destinations.server";
 import { loader as authWsLoader } from "./auth.ws";
 import { getUserById } from "~/shared/db/user.server";
+import { resolveOrganizeosSite } from "~/shared/db/organizeos-site.server";
 import {
   createPrivateNoStoreHeaders,
   privateNoStoreResponseHeaders,
@@ -225,6 +226,24 @@ export const loader = async (loaderArgs: LoaderFunctionArgs) => {
       throw new AuthorizationError("Project must have project userId defined");
     }
 
+    // OrganizeOS: a project owned by an org's synthetic service account is an
+    // OrganizeOS site. The chrome then points back at the org's Website area
+    // and the Publish dialog shows the site's real address.
+    const owner = await context.postgrest.client
+      .from("User")
+      .select("provider, email")
+      .eq("id", project.userId)
+      .maybeSingle();
+    const organizeosSite =
+      owner.error || owner.data === null
+        ? undefined
+        : resolveOrganizeosSite({
+            owner: owner.data,
+            projectDomain: project.domain,
+            publisherHost: env.PUBLISHER_HOST,
+            platformUrl: env.ORGANIZEOS_APP_URL,
+          });
+
     const headers = createPrivateNoStoreHeaders();
 
     if (context.authorization.type === "token") {
@@ -269,6 +288,7 @@ export const loader = async (loaderArgs: LoaderFunctionArgs) => {
         purchases,
         stagingUsername: env.STAGING_USERNAME,
         stagingPassword: env.STAGING_PASSWORD,
+        organizeosSite,
       } as const,
       {
         headers,

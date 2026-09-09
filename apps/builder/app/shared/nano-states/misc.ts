@@ -23,6 +23,7 @@ import type {
 } from "@webstudio-is/sdk";
 import type { CssProperty, UnitValue } from "@webstudio-is/css-engine";
 import type { TokenPermissions } from "@webstudio-is/authorization-token";
+import type { OrganizeosSite } from "../organizeos-site";
 import type { AssetType } from "@webstudio-is/asset-uploader";
 import type { DragStartPayload } from "~/canvas/shared/use-drag-drop";
 import { type InstanceSelector } from "../instance-utils/tree";
@@ -357,6 +358,12 @@ export const $authToken = atom<string | undefined>(undefined);
 
 export const $stagingUsername = atom<string | undefined>();
 export const $stagingPassword = atom<string | undefined>();
+
+/**
+ * Set for projects owned by an OrganizeOS org (resolved by the builder
+ * loader); undefined for a human-owned project, which keeps upstream chrome.
+ */
+export const $organizeosSite = atom<OrganizeosSite | undefined>();
 
 export const $permissions = computed(
   [$planFeatures, $authPermit, $workspaceRole, $workspaces],
