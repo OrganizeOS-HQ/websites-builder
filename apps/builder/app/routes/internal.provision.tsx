@@ -1,14 +1,15 @@
 import { json, type ActionFunctionArgs } from "@remix-run/server-runtime";
-import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { createClient } from "@webstudio-is/postgrest/index.server";
 import type { AppContext } from "@webstudio-is/trpc-interface/index.server";
 import env from "~/env/env.server";
+import { isAuthorizedInternalCall } from "~/services/internal-auth.server";
 import {
   provisionOrgWorkspace,
   deprovisionOrgWorkspace,
 } from "~/shared/db/provision.server";
 import { defaultOrgEntitlements } from "~/shared/db/organizeos-plan.server";
+import { orgSubdomainSchema } from "~/shared/db/organizeos-site.server";
 
 // The internal provisioning route acts as the system (direct inserts as the
 // synthetic owner), so it needs only a Postgres client, not the request-auth
@@ -20,38 +21,6 @@ const createProvisionContext = (): AppContext =>
       client: createClient(env.POSTGREST_URL, env.POSTGREST_API_KEY),
     },
   }) as AppContext;
-
-const constantTimeEqual = (a: string, b: string): boolean => {
-  const aBuf = Buffer.from(a);
-  const bBuf = Buffer.from(b);
-  // timingSafeEqual requires equal-length buffers; the length itself is not
-  // secret, so compare lengths first then constant-time compare the bytes.
-  if (aBuf.length !== bBuf.length) {
-    return false;
-  }
-  return timingSafeEqual(aBuf, bBuf);
-};
-
-/**
- * Server-to-server only. Requires the dedicated ORGANIZEOS_PROVISION_TOKEN
- * (constant-time compared, distinct from TRPC_SERVER_API_TOKEN so it cannot
- * reach the collab-relay/service paths) and rejects any request carrying a
- * session cookie, so a browser or CSRF context can never invoke provisioning.
- */
-const isAuthorizedInternalCall = (request: Request): boolean => {
-  const token = env.ORGANIZEOS_PROVISION_TOKEN;
-  if (token === undefined || token.length === 0) {
-    return false;
-  }
-  if (request.headers.get("Cookie") !== null) {
-    return false;
-  }
-  const header = request.headers.get("Authorization");
-  if (header === null) {
-    return false;
-  }
-  return constantTimeEqual(header, token);
-};
 
 // organizationId ONLY (+ a display name, the org's admin emails, and the
 // action). No projectId/workspaceId is ever accepted from the caller: every id
@@ -70,6 +39,11 @@ const provisionInput = z.object({
   // (Phase 4d). Omitted -> the workspace is provisioned without presets.
   readToken: z.string().min(1).optional(),
   apiBaseUrl: z.string().url().optional(),
+  // The org's platform subdomain (<subdomain>.organizeos.org). Mirrored into
+  // Project.domain so, with PUBLISHER_HOST set to the platform base domain,
+  // every place the builder shows "the site's address" shows the real one.
+  // Optional: an older caller leaves the derived org-<id> placeholder.
+  subdomain: orgSubdomainSchema.optional(),
   // The org's paid capabilities, as resolved by OrganizeOS (the only authority
   // on what an org is entitled to). Absent -> no paid capability: an older
   // caller, or one that cannot resolve entitlements, must never grant one.
@@ -92,7 +66,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method !== "POST") {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
-  if (isAuthorizedInternalCall(request) === false) {
+  // Server-to-server only. Requires the dedicated ORGANIZEOS_PROVISION_TOKEN
+  // (constant-time compared, distinct from TRPC_SERVER_API_TOKEN so it cannot
+  // reach the collab-relay/service paths) and rejects any request carrying a
+  // session cookie, so a browser or CSRF context can never invoke provisioning.
+  if (
+    isAuthorizedInternalCall(request, env.ORGANIZEOS_PROVISION_TOKEN) === false
+  ) {
     return json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -124,6 +104,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     orgName: parsed.data.orgName,
     adminEmails: parsed.data.adminEmails,
     entitlements: parsed.data.entitlements,
+    subdomain: parsed.data.subdomain,
     siteData:
       parsed.data.readToken !== undefined &&
       parsed.data.apiBaseUrl !== undefined

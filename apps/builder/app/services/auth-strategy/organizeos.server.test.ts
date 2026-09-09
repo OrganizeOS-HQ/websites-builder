@@ -22,6 +22,17 @@ vi.mock("~/shared/db/organizeos-plan.server", () => ({
   syncOrgOwnerPlan: vi.fn(async () => undefined),
 }));
 
+vi.mock("~/shared/db/organizeos-site.server", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("~/shared/db/organizeos-site.server")
+  >()),
+  syncOrgProjectDomain: vi.fn(async () => ({
+    domain: "acme",
+    changed: true,
+    conflict: false,
+  })),
+}));
+
 const { publicKey, privateKey } = generateKeyPairSync("ec", {
   namedCurve: "P-256",
 });
@@ -188,6 +199,64 @@ describe("organizeosSsoLogin", () => {
     const result = await organizeosSsoLogin(
       context as never,
       makeToken("nonce-fail", { entitlements: { collections: true } }),
+      publicKeyPem
+    );
+
+    expect(result.userId).toBe("resolved-user-id");
+  });
+});
+
+describe("organizeosSsoLogin site refresh", () => {
+  const context = {
+    postgrest: {
+      client: { from: () => ({ insert: async () => ({ error: null }) }) },
+    },
+  };
+
+  test("mirrors the signed subdomain into the org project's domain", async () => {
+    const { syncOrgProjectDomain } = await import(
+      "~/shared/db/organizeos-site.server"
+    );
+
+    await organizeosSsoLogin(
+      context as never,
+      makeToken("nonce-sub", { subdomain: "acme" }),
+      publicKeyPem
+    );
+
+    expect(syncOrgProjectDomain).toHaveBeenCalledWith(context, {
+      projectId: deriveProjectId("org-1"),
+      organizationId: "org-1",
+      subdomain: "acme",
+    });
+  });
+
+  test("leaves the domain alone when the token carries no subdomain", async () => {
+    const { syncOrgProjectDomain } = await import(
+      "~/shared/db/organizeos-site.server"
+    );
+
+    await organizeosSsoLogin(
+      context as never,
+      makeToken("nonce-nosub"),
+      publicKeyPem
+    );
+
+    expect(syncOrgProjectDomain).not.toHaveBeenCalled();
+  });
+
+  test("still logs the admin in when the domain sync fails", async () => {
+    const { syncOrgProjectDomain } = await import(
+      "~/shared/db/organizeos-site.server"
+    );
+    vi.mocked(syncOrgProjectDomain).mockRejectedValueOnce(
+      new Error("postgrest down")
+    );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const result = await organizeosSsoLogin(
+      context as never,
+      makeToken("nonce-subfail", { subdomain: "acme" }),
       publicKeyPem
     );
 

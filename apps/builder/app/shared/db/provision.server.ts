@@ -9,6 +9,13 @@ import {
   syncOrgOwnerPlan,
   type OrgEntitlements,
 } from "./organizeos-plan.server";
+import {
+  deriveProjectDomain,
+  resolveOrgProjectDomain,
+  syncOrgProjectDomain,
+} from "./organizeos-site.server";
+
+export { deriveProjectDomain };
 
 /**
  * OrganizeOS multi-tenant provisioning (Websites 2.0, Phase 4b).
@@ -60,14 +67,6 @@ export const deriveProjectId = (organizationId: string): string =>
 export const deriveSyntheticEmail = (organizationId: string): string =>
   `org+${organizationId}@svc.organizeos.internal`;
 
-/**
- * Webstudio Project.domain must be unique and is only an internal identifier
- * here (public hosting is via the OrganizeOS subdomain + reverse proxy, not
- * Webstudio's domain). Derive a stable, unique slug from the org id.
- */
-export const deriveProjectDomain = (organizationId: string): string =>
-  `org-${organizationId.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-
 export type ProvisionResult = {
   serviceUserId: string;
   workspaceId: string;
@@ -91,6 +90,10 @@ export type ProvisionResult = {
  * `entitlements` are the org's paid capabilities as resolved by OrganizeOS.
  * They become the synthetic owner's plan, which is what the builder's own
  * feature gates read. Omitted means no paid capability (deny by default).
+ *
+ * `subdomain` is the org's platform subdomain. It becomes Project.domain (see
+ * organizeos-site.server.ts), so the builder shows the site's real address.
+ * Omitted (an older caller) keeps the derived org-<id> placeholder.
  */
 export const provisionOrgWorkspace = async (
   context: AppContext,
@@ -100,12 +103,14 @@ export const provisionOrgWorkspace = async (
     adminEmails,
     siteData,
     entitlements = defaultOrgEntitlements,
+    subdomain,
   }: {
     organizationId: string;
     orgName: string;
     adminEmails: string[];
     siteData?: { readToken: string; apiBaseUrl: string };
     entitlements?: OrgEntitlements;
+    subdomain?: string;
   }
 ): Promise<ProvisionResult> => {
   const client = context.postgrest.client;
@@ -163,7 +168,7 @@ export const provisionOrgWorkspace = async (
     const insertProject = await client.from("Project").insert({
       id: projectId,
       title: orgName,
-      domain: deriveProjectDomain(organizationId),
+      domain: resolveOrgProjectDomain(organizationId, subdomain),
     });
     if (insertProject.error) {
       throw insertProject.error;
@@ -178,6 +183,14 @@ export const provisionOrgWorkspace = async (
     if (attachOwner.error) {
       throw attachOwner.error;
     }
+  } else {
+    // Re-sync: an org whose subdomain changed (or that was provisioned before
+    // the caller sent one) converges on its current address.
+    await syncOrgProjectDomain(context, {
+      projectId,
+      organizationId,
+      subdomain,
+    });
   }
 
   // 3b. Seed the OrganizeOS /v1 data Resource presets + a starter signup form

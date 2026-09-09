@@ -5,6 +5,7 @@ import {
   deriveSyntheticUserId,
 } from "~/shared/db/provision.server";
 import { syncOrgOwnerPlan } from "~/shared/db/organizeos-plan.server";
+import { syncOrgProjectDomain } from "~/shared/db/organizeos-site.server";
 import { builderUrl } from "~/shared/router-utils";
 import { verifyOrganizeosSsoToken } from "./organizeos-token.server";
 
@@ -80,7 +81,34 @@ export const organizeosSsoLogin = async (
   //    current state here.
   await refreshOrgEntitlements(context, claims);
 
+  // 5. Same for the org's subdomain: the project's domain follows it, so the
+  //    builder always shows the site's current public address.
+  await refreshOrgSite(context, claims);
+
   return { userId: user.id, createdAt: Date.now() };
+};
+
+/**
+ * Mirror the token's subdomain into the org project's domain. Fail-open like
+ * the entitlement refresh: a cosmetic sync must never cost an admin their
+ * login. A token without the claim leaves the domain alone.
+ */
+const refreshOrgSite = async (
+  context: AppContext,
+  claims: { organizationId: string; subdomain?: string }
+): Promise<void> => {
+  if (claims.subdomain === undefined) {
+    return;
+  }
+  try {
+    await syncOrgProjectDomain(context, {
+      projectId: deriveProjectId(claims.organizationId),
+      organizationId: claims.organizationId,
+      subdomain: claims.subdomain,
+    });
+  } catch (error) {
+    console.error("[organizeosSsoLogin] site domain refresh failed", error);
+  }
 };
 
 /**

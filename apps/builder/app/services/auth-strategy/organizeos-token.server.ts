@@ -39,6 +39,12 @@ export type OrganizeosSsoClaims = {
    * OrganizeOS simply carries none and leaves the provisioned plan alone.
    */
   entitlements?: { collections: boolean };
+  /**
+   * The org's platform subdomain, mirrored into the project's domain on
+   * entry so the builder shows the site's real address and a rename
+   * converges. Optional for the same reason as entitlements.
+   */
+  subdomain?: string;
 };
 
 /**
@@ -57,6 +63,18 @@ const readEntitlements = (
   const { collections } = value as { collections?: unknown };
   return typeof collections === "boolean" ? { collections } : undefined;
 };
+
+/**
+ * Same slug shape OrganizeOS enforces for a subdomain. Anything else is
+ * treated as absent (never as a rename), so a malformed claim cannot move the
+ * project's domain anywhere.
+ */
+const SUBDOMAIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
+const readSubdomain = (value: unknown): string | undefined =>
+  typeof value === "string" && SUBDOMAIN_PATTERN.test(value)
+    ? value
+    : undefined;
 
 const EXPECTED_ALG = "ES256";
 const EXPECTED_ISS = "organizeos";
@@ -165,5 +183,6 @@ export const verifyOrganizeosSsoToken = (
     iat: payload.iat,
     jti: payload.jti,
     entitlements: readEntitlements(payload.entitlements),
+    subdomain: readSubdomain(payload.subdomain),
   };
 };

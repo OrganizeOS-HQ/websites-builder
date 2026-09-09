@@ -1,4 +1,4 @@
-import { describe, test, expect } from "vitest";
+import { describe, test, expect, vi } from "vitest";
 import {
   createTestServer,
   db,
@@ -53,6 +53,15 @@ describe("provision id derivation", () => {
   });
 });
 
+// A brand-new project gets its first build through project-build's RPC; the
+// build itself is not under test here.
+vi.mock("@webstudio-is/project-build/index.server", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@webstudio-is/project-build/index.server")
+  >()),
+  createBuild: vi.fn(async () => ({ id: "build-1" })),
+}));
+
 const server = createTestServer();
 
 /**
@@ -97,5 +106,80 @@ describe("provisionOrgWorkspace entitlements", () => {
     expect(await provisionAndReadPlanProduct()).toBe(
       entitlementProductId({ collections: false })
     );
+  });
+});
+
+/** Provision "org-1" and capture the Project rows written (insert + updates). */
+const provisionAndCaptureProject = async ({
+  existingProject,
+  subdomain,
+}: {
+  existingProject: Record<string, unknown> | undefined;
+  subdomain?: string;
+}) => {
+  const inserted: Array<Record<string, unknown>> = [];
+  const patched: Array<Record<string, unknown>> = [];
+  server.use(
+    db.post("User", () => empty({ status: 201 })),
+    db.post("Workspace", () => empty({ status: 201 })),
+    db.post("Product", () => empty({ status: 201 })),
+    db.post("TransactionLog", () => empty({ status: 201 })),
+    db.delete("TransactionLog", () => empty({ status: 204 })),
+    db.get("Project", () =>
+      existingProject === undefined ? json([]) : json(existingProject)
+    ),
+    db.post("Project", async ({ request }) => {
+      inserted.push((await request.json()) as Record<string, unknown>);
+      return empty({ status: 201 });
+    }),
+    db.patch("Project", async ({ request }) => {
+      patched.push((await request.json()) as Record<string, unknown>);
+      return empty({ status: 204 });
+    })
+  );
+
+  await provisionOrgWorkspace(testContext as unknown as AppContext, {
+    organizationId: "org-1",
+    orgName: "Org One",
+    adminEmails: [],
+    ...(subdomain === undefined ? {} : { subdomain }),
+  });
+
+  return { inserted, patched };
+};
+
+describe("provisionOrgWorkspace site domain", () => {
+  test("a new project takes the org's subdomain as its domain", async () => {
+    const { inserted } = await provisionAndCaptureProject({
+      existingProject: undefined,
+      subdomain: "acme",
+    });
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0].domain).toBe("acme");
+  });
+
+  test("a new project from an older caller keeps the derived placeholder", async () => {
+    const { inserted } = await provisionAndCaptureProject({
+      existingProject: undefined,
+    });
+    expect(inserted[0].domain).toBe(deriveProjectDomain("org-1"));
+  });
+
+  test("re-provisioning moves an existing project onto the subdomain", async () => {
+    const { patched } = await provisionAndCaptureProject({
+      existingProject: {
+        id: deriveProjectId("org-1"),
+        domain: deriveProjectDomain("org-1"),
+      },
+      subdomain: "acme",
+    });
+    expect(patched).toEqual([{ domain: "acme" }]);
+  });
+
+  test("re-provisioning without a subdomain leaves the domain alone", async () => {
+    const { patched } = await provisionAndCaptureProject({
+      existingProject: { id: deriveProjectId("org-1"), domain: "acme" },
+    });
+    expect(patched).toEqual([]);
   });
 });

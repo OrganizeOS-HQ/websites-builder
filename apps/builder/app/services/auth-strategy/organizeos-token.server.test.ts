@@ -72,6 +72,28 @@ describe("verifyOrganizeosSsoToken", () => {
     expect(verify(token).entitlements).toBeUndefined();
   });
 
+  test("returns the subdomain claim when present and well-formed", () => {
+    const token = signES256(
+      { alg: "ES256", typ: "JWT" },
+      { ...validClaims(), subdomain: "acme-local" }
+    );
+    expect(verify(token).subdomain).toBe("acme-local");
+  });
+
+  test.each([
+    ["absent", undefined],
+    ["a non-string", 42],
+    ["an upper-case slug", "Acme"],
+    ["a host instead of a slug", "acme.example.org"],
+    ["an empty string", ""],
+  ])("treats %s subdomain claim as absent", (_label, subdomain) => {
+    const token = signES256(
+      { alg: "ES256", typ: "JWT" },
+      { ...validClaims(), ...(subdomain === undefined ? {} : { subdomain }) }
+    );
+    expect(verify(token).subdomain).toBeUndefined();
+  });
+
   test.each([
     ["a non-object", "yes"],
     ["a non-boolean flag", { collections: "true" }],
