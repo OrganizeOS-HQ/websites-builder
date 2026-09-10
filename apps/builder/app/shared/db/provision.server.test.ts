@@ -13,6 +13,7 @@ import {
   deriveProjectId,
   deriveSyntheticEmail,
   deriveProjectDomain,
+  grantOrgWorkspaceMembership,
   provisionOrgWorkspace,
 } from "./provision.server";
 import { entitlementProductId } from "./organizeos-plan.server";
@@ -181,5 +182,231 @@ describe("provisionOrgWorkspace site domain", () => {
       existingProject: { id: deriveProjectId("org-1"), domain: "acme" },
     });
     expect(patched).toEqual([]);
+  });
+});
+
+describe("provisionOrgWorkspace lifecycle", () => {
+  test("re-provisioning after an offboard restores the workspace and project", async () => {
+    let workspaceUpsert: { body: unknown; prefer: string | null } | undefined;
+    const projectPatches: Array<Record<string, unknown>> = [];
+    server.use(
+      db.post("User", () => empty({ status: 201 })),
+      db.post("Workspace", async ({ request }) => {
+        workspaceUpsert = {
+          body: await request.json(),
+          prefer: request.headers.get("Prefer"),
+        };
+        return empty({ status: 201 });
+      }),
+      db.post("Product", () => empty({ status: 201 })),
+      db.post("TransactionLog", () => empty({ status: 201 })),
+      db.delete("TransactionLog", () => empty({ status: 204 })),
+      db.get("Project", () =>
+        json({
+          id: deriveProjectId("org-1"),
+          domain: "acme",
+          isDeleted: true,
+        })
+      ),
+      db.patch("Project", async ({ request }) => {
+        projectPatches.push((await request.json()) as Record<string, unknown>);
+        return empty({ status: 204 });
+      })
+    );
+
+    await provisionOrgWorkspace(testContext as unknown as AppContext, {
+      organizationId: "org-1",
+      orgName: "Org One (renamed)",
+      adminEmails: [],
+    });
+
+    // The workspace row is merged, not ignored: the soft-delete is cleared and
+    // the name follows the org.
+    expect(workspaceUpsert?.body).toMatchObject({
+      id: deriveWorkspaceId("org-1"),
+      name: "Org One (renamed)",
+      isDeleted: false,
+    });
+    expect(workspaceUpsert?.prefer ?? "").not.toMatch(/ignore-duplicates/);
+    expect(projectPatches).toEqual([{ isDeleted: false }]);
+  });
+
+  test("a live project is not patched just to stay live", async () => {
+    const projectPatches: Array<Record<string, unknown>> = [];
+    server.use(
+      db.post("User", () => empty({ status: 201 })),
+      db.post("Workspace", () => empty({ status: 201 })),
+      db.post("Product", () => empty({ status: 201 })),
+      db.post("TransactionLog", () => empty({ status: 201 })),
+      db.delete("TransactionLog", () => empty({ status: 204 })),
+      db.get("Project", () =>
+        json({ id: deriveProjectId("org-1"), domain: "acme", isDeleted: false })
+      ),
+      db.patch("Project", async ({ request }) => {
+        projectPatches.push((await request.json()) as Record<string, unknown>);
+        return empty({ status: 204 });
+      })
+    );
+
+    await provisionOrgWorkspace(testContext as unknown as AppContext, {
+      organizationId: "org-1",
+      orgName: "Org One",
+      adminEmails: [],
+      subdomain: "acme",
+    });
+
+    expect(projectPatches).toEqual([]);
+  });
+});
+
+/**
+ * Provision "org-1" with `adminEmails`, where the workspace currently has
+ * `activeMemberIds` as active members, and report the membership writes.
+ * Every admin email resolves to the User id `u-<local part>`.
+ */
+const provisionAndCaptureMembers = async ({
+  adminEmails,
+  activeMemberIds,
+}: {
+  adminEmails: string[];
+  activeMemberIds: string[];
+}) => {
+  const upserts: Array<Array<Record<string, unknown>>> = [];
+  const retirements: Array<{ url: URL; body: Record<string, unknown> }> = [];
+  server.use(
+    db.post("User", () => empty({ status: 201 })),
+    // resolveOrCreateUserByEmail: the admin already has an account.
+    db.get("User", ({ request }) => {
+      const email = new URL(request.url).searchParams.get("email") ?? "";
+      const localPart = email.replace(/^eq\./, "").split("@")[0];
+      return json({
+        id: `u-${localPart}`,
+        email,
+        provider: "organizeos",
+        projectsTags: [],
+      });
+    }),
+    db.post("Workspace", () => empty({ status: 201 })),
+    db.get("Workspace", () => json({ id: "ws-default" })),
+    db.post("Product", () => empty({ status: 201 })),
+    db.post("TransactionLog", () => empty({ status: 201 })),
+    db.delete("TransactionLog", () => empty({ status: 204 })),
+    db.get("Project", () =>
+      json({ id: deriveProjectId("org-1"), domain: "acme", isDeleted: false })
+    ),
+    db.get("WorkspaceMember", () =>
+      json(activeMemberIds.map((userId) => ({ userId })))
+    ),
+    db.post("WorkspaceMember", async ({ request }) => {
+      upserts.push((await request.json()) as Array<Record<string, unknown>>);
+      return empty({ status: 201 });
+    }),
+    db.patch("WorkspaceMember", async ({ request }) => {
+      retirements.push({
+        url: new URL(request.url),
+        body: (await request.json()) as Record<string, unknown>,
+      });
+      return empty({ status: 204 });
+    })
+  );
+
+  await provisionOrgWorkspace(testContext as unknown as AppContext, {
+    organizationId: "org-1",
+    orgName: "Org One",
+    adminEmails,
+  });
+
+  return { upserts, retirements };
+};
+
+describe("provisionOrgWorkspace membership re-sync", () => {
+  test("seats the current admins and retires everyone else", async () => {
+    const { upserts, retirements } = await provisionAndCaptureMembers({
+      adminEmails: ["keep@example.org", "new@example.org"],
+      activeMemberIds: ["u-keep", "u-gone"],
+    });
+
+    expect(upserts).toEqual([
+      [
+        {
+          workspaceId: deriveWorkspaceId("org-1"),
+          userId: "u-keep",
+          relation: "administrators",
+          removedAt: null,
+        },
+        {
+          workspaceId: deriveWorkspaceId("org-1"),
+          userId: "u-new",
+          relation: "administrators",
+          removedAt: null,
+        },
+      ],
+    ]);
+    expect(retirements).toHaveLength(1);
+    expect(retirements[0].url.searchParams.get("userId")).toBe("in.(u-gone)");
+    expect(retirements[0].url.searchParams.get("removedAt")).toBe("is.null");
+    expect(typeof retirements[0].body.removedAt).toBe("string");
+  });
+
+  test("retires nobody when the admin list already matches", async () => {
+    const { retirements } = await provisionAndCaptureMembers({
+      adminEmails: ["keep@example.org"],
+      activeMemberIds: ["u-keep"],
+    });
+    expect(retirements).toEqual([]);
+  });
+
+  test("an empty admin list evicts nobody", async () => {
+    const { upserts, retirements } = await provisionAndCaptureMembers({
+      adminEmails: [],
+      activeMemberIds: ["u-keep"],
+    });
+    expect(upserts).toEqual([]);
+    expect(retirements).toEqual([]);
+  });
+});
+
+describe("grantOrgWorkspaceMembership", () => {
+  test("seats one admin in the org's workspace", async () => {
+    let upsert: { body: unknown; prefer: string | null } | undefined;
+    server.use(
+      db.post("WorkspaceMember", async ({ request }) => {
+        upsert = {
+          body: await request.json(),
+          prefer: request.headers.get("Prefer"),
+        };
+        return empty({ status: 201 });
+      })
+    );
+
+    await grantOrgWorkspaceMembership(testContext as unknown as AppContext, {
+      organizationId: "org-1",
+      userId: "u-admin",
+    });
+
+    expect(upsert?.body).toEqual([
+      {
+        workspaceId: deriveWorkspaceId("org-1"),
+        userId: "u-admin",
+        relation: "administrators",
+        removedAt: null,
+      },
+    ]);
+    // An existing (possibly retired) row is merged back to active.
+    expect(upsert?.prefer ?? "").toMatch(/merge-duplicates/);
+  });
+
+  test("throws on a store error", async () => {
+    server.use(
+      db.post("WorkspaceMember", () =>
+        json({ message: "down" }, { status: 500 })
+      )
+    );
+    await expect(
+      grantOrgWorkspaceMembership(testContext as unknown as AppContext, {
+        organizationId: "org-1",
+        userId: "u-admin",
+      })
+    ).rejects.toBeTruthy();
   });
 });

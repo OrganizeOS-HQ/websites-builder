@@ -3,6 +3,7 @@ import { resolveOrCreateUserByEmail } from "~/shared/db/user.server";
 import {
   deriveProjectId,
   deriveSyntheticUserId,
+  grantOrgWorkspaceMembership,
 } from "~/shared/db/provision.server";
 import { syncOrgOwnerPlan } from "~/shared/db/organizeos-plan.server";
 import { syncOrgProjectDomain } from "~/shared/db/organizeos-site.server";
@@ -74,6 +75,17 @@ export const organizeosSsoLogin = async (
   // 3. Resolve (or lazily create) the Webstudio dashboard User for this admin.
   const user = await resolveOrCreateUserByEmail(context, claims.email);
 
+  // 3b. Seat the admin in the org's workspace. OrganizeOS signs a token only
+  //     for a currently active owner/admin of that org, so the verified token
+  //     is the authority; without this an admin added after provisioning had
+  //     no membership until the next re-sync. Fail-open: an admin who already
+  //     holds a seat must not lose their login to a store hiccup, and project
+  //     access is still decided against the membership rows themselves.
+  await seatOrgAdmin(context, {
+    organizationId: claims.organizationId,
+    userId: user.id,
+  });
+
   // 4. Refresh the org's plan from the signed entitlements. Provisioning is the
   //    only other time they are set, so without this a tier change would never
   //    reach the builder. Entry is the right moment: it is when the entitlement
@@ -108,6 +120,20 @@ const refreshOrgSite = async (
     });
   } catch (error) {
     console.error("[organizeosSsoLogin] site domain refresh failed", error);
+  }
+};
+
+const seatOrgAdmin = async (
+  context: AppContext,
+  seat: { organizationId: string; userId: string }
+): Promise<void> => {
+  try {
+    await grantOrgWorkspaceMembership(context, seat);
+  } catch (error) {
+    console.error(
+      "[organizeosSsoLogin] workspace membership grant failed",
+      error
+    );
   }
 };
 

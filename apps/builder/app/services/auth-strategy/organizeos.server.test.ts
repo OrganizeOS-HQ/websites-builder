@@ -22,6 +22,11 @@ vi.mock("~/shared/db/organizeos-plan.server", () => ({
   syncOrgOwnerPlan: vi.fn(async () => undefined),
 }));
 
+vi.mock("~/shared/db/provision.server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("~/shared/db/provision.server")>()),
+  grantOrgWorkspaceMembership: vi.fn(async () => undefined),
+}));
+
 vi.mock("~/shared/db/organizeos-site.server", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("~/shared/db/organizeos-site.server")
@@ -203,6 +208,59 @@ describe("organizeosSsoLogin", () => {
     );
 
     expect(result.userId).toBe("resolved-user-id");
+  });
+});
+
+describe("organizeosSsoLogin workspace seat", () => {
+  const context = {
+    postgrest: {
+      client: { from: () => ({ insert: async () => ({ error: null }) }) },
+    },
+  };
+
+  test("seats the verified admin in the org's workspace", async () => {
+    const { grantOrgWorkspaceMembership } = await import(
+      "~/shared/db/provision.server"
+    );
+
+    await organizeosSsoLogin(
+      context as never,
+      makeToken("nonce-seat"),
+      publicKeyPem
+    );
+
+    expect(grantOrgWorkspaceMembership).toHaveBeenCalledWith(context, {
+      organizationId: "org-1",
+      userId: "resolved-user-id",
+    });
+  });
+
+  test("still logs the admin in when the seat cannot be written", async () => {
+    const { grantOrgWorkspaceMembership } = await import(
+      "~/shared/db/provision.server"
+    );
+    vi.mocked(grantOrgWorkspaceMembership).mockRejectedValueOnce(
+      new Error("postgrest down")
+    );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const result = await organizeosSsoLogin(
+      context as never,
+      makeToken("nonce-seat-fail"),
+      publicKeyPem
+    );
+
+    expect(result.userId).toBe("resolved-user-id");
+  });
+
+  test("never seats anyone for a token that fails verification", async () => {
+    const { grantOrgWorkspaceMembership } = await import(
+      "~/shared/db/provision.server"
+    );
+    await expect(
+      organizeosSsoLogin(context as never, "not-a-jwt", publicKeyPem)
+    ).rejects.toThrow();
+    expect(grantOrgWorkspaceMembership).not.toHaveBeenCalled();
   });
 });
 
