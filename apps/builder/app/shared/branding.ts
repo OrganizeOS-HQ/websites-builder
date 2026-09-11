@@ -32,19 +32,23 @@ export const publisherHost = "organizeos.org";
 
 /**
  * Plans are per-org entitlements resolved by OrganizeOS (see
- * `shared/db/organizeos-plan.server.ts`), never a checkout inside the builder.
- * So a gated feature points at the org's administrator instead of a payment
- * page — there is nothing a user can buy from here.
+ * `shared/db/organizeos-plan.server.ts`), never a checkout inside the builder,
+ * so a gated feature must not point at a payment page.
+ *
+ * It must not point at "your administrator" either: provisioning seats only the
+ * org's owners and admins, so everyone who can open an org project IS the
+ * administrator, and telling them to go ask one is circular. Name where the
+ * plan actually lives instead.
  */
-export const planUpgradeHint = `Ask your ${platformName} administrator to upgrade your plan.`;
+export const planUpgradeHint = `Your organization's plan is managed in ${platformName}.`;
 
 /**
  * Label for the badge that marks a control the org's plan does not include.
  * Upstream said "PRO", naming a Webstudio tier that has no OrganizeOS
- * equivalent and that nobody can buy from inside the builder. The adjacent
- * tooltips carry `planUpgradeHint`, which says who actually does the upgrading.
+ * equivalent. A status, not a verb: nothing can be bought from inside the
+ * builder, so a badge reading "Upgrade" would offer an action that is not here.
  */
-export const planBadgeLabel = "Upgrade";
+export const planBadgeLabel = "Not in plan";
 
 /**
  * AGPL section 13 source offer. This is a modified version of Webstudio served

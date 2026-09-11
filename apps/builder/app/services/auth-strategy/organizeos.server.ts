@@ -201,3 +201,31 @@ export const resolveSsoLandingUrl = (
     return null;
   }
 };
+
+/**
+ * Where a successful SSO entry should land.
+ *
+ * The deep link into the org's project is what OrganizeOS means by "open the
+ * website builder", so it beats a stored returnTo that points at the fork
+ * dashboard. That cookie is easy to acquire by accident — any earlier visit to
+ * /login sets it — and it used to outrank the deep link, dropping the admin on
+ * a dashboard OrganizeOS does not use. A returnTo pointing anywhere else is
+ * still honoured: that is the mid-flow re-authentication case it exists for.
+ */
+export const resolveSsoReturnTo = ({
+  storedReturnTo,
+  deepLink,
+  dashboardPath,
+}: {
+  storedReturnTo: string | null;
+  deepLink: string | null;
+  dashboardPath: string;
+}): string => {
+  const honoursStored =
+    storedReturnTo !== null &&
+    storedReturnTo.startsWith(dashboardPath) === false;
+  if (honoursStored) {
+    return storedReturnTo;
+  }
+  return deepLink ?? dashboardPath;
+};

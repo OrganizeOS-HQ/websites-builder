@@ -11,6 +11,7 @@ import {
   deriveProjectDomain,
   isOrgSubdomain,
   organizeosWebsiteAreaUrl,
+  resolveOrganizeosDashboardExit,
   resolveOrgProjectDomain,
   resolveOrganizeosSite,
   syncOrgProjectDomain,
@@ -215,5 +216,104 @@ describe("syncOrgProjectDomain", () => {
         subdomain: "acme",
       })
     ).rejects.toThrow(/not found/);
+  });
+});
+
+describe("resolveOrganizeosDashboardExit", () => {
+  const PLATFORM = "https://app.example.org";
+  const exit = (
+    workspaces: Array<{ id: string; userId: string; role: string }>
+  ) =>
+    resolveOrganizeosDashboardExit(context, {
+      userId: "human-1",
+      workspaces,
+      publisherHost: "example.org",
+      platformUrl: PLATFORM,
+    });
+
+  /** The org's service account owns "ws-org"; the user is a member, not owner. */
+  const ORG_WORKSPACE = {
+    id: "ws-org",
+    userId: "svc-1",
+    role: "administrators",
+  };
+  const OWN_WORKSPACE = { id: "ws-mine", userId: "human-1", role: "own" };
+  const SERVICE_OWNER_ROW = {
+    id: "svc-1",
+    provider: "organizeos-service",
+    email: `org+${ORG_ID}@svc.organizeos.internal`,
+  };
+
+  test("leaves a user who belongs to no shared workspace alone", async () => {
+    // No queries at all: nothing is mocked, so an unhandled request would fail.
+    await expect(exit([OWN_WORKSPACE])).resolves.toBeUndefined();
+  });
+
+  test("leaves a member of a human-owned workspace alone", async () => {
+    server.use(db.get("User", () => json([])));
+
+    await expect(
+      exit([
+        OWN_WORKSPACE,
+        { id: "ws-friend", userId: "human-2", role: "viewers" },
+      ])
+    ).resolves.toBeUndefined();
+  });
+
+  test("leaves an org admin who also owns projects here alone", async () => {
+    // The dashboard is the only way to reach their own projects.
+    server.use(
+      db.get("User", () => json([SERVICE_OWNER_ROW])),
+      db.head("Project", () => empty({ headers: { "Content-Range": "*/2" } }))
+    );
+
+    await expect(exit([OWN_WORKSPACE, ORG_WORKSPACE])).resolves.toBeUndefined();
+  });
+
+  test("sends an org admin to their organization's Website area", async () => {
+    server.use(
+      db.get("User", () => json([SERVICE_OWNER_ROW])),
+      db.head("Project", () => empty({ headers: { "Content-Range": "*/0" } })),
+      db.get("Project", () => json({ domain: "acme" }))
+    );
+
+    await expect(exit([OWN_WORKSPACE, ORG_WORKSPACE])).resolves.toBe(
+      `${PLATFORM}/acme/website`
+    );
+  });
+
+  test("sends an admin of several orgs to the platform home", async () => {
+    server.use(
+      db.get("User", () =>
+        json([SERVICE_OWNER_ROW, { ...SERVICE_OWNER_ROW, id: "svc-2" }])
+      ),
+      db.head("Project", () => empty({ headers: { "Content-Range": "*/0" } }))
+    );
+
+    await expect(
+      exit([
+        ORG_WORKSPACE,
+        { id: "ws-org-2", userId: "svc-2", role: "administrators" },
+      ])
+    ).resolves.toBe(PLATFORM);
+  });
+
+  test("falls back to the platform home when the org has no readable project", async () => {
+    server.use(
+      db.get("User", () => json([SERVICE_OWNER_ROW])),
+      db.head("Project", () => empty({ headers: { "Content-Range": "*/0" } })),
+      db.get("Project", () => json([]))
+    );
+
+    await expect(exit([ORG_WORKSPACE])).resolves.toBe(PLATFORM);
+  });
+
+  test("throws rather than guessing when the owner lookup fails", async () => {
+    // The caller fails open; it must be able to tell a failure from a decision.
+    server.use(
+      db.get("User", () => json({ message: "down" }, { status: 500 }))
+    );
+
+    await expect(exit([ORG_WORKSPACE])).rejects.toBeTruthy();
   });
 });

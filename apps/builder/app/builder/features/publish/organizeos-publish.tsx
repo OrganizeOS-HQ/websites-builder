@@ -40,7 +40,7 @@ import { setActiveSidebarPanel } from "~/builder/shared/nano-states";
 import { nativeClient } from "~/shared/trpc/trpc-client";
 import { CopyToClipboard } from "~/shared/copy-to-clipboard";
 import { RelativeTime } from "~/builder/shared/relative-time";
-import { planUpgradeHint, platformName } from "~/shared/branding";
+import { platformName } from "~/shared/branding";
 import { getRestrictedFeatures } from "./restricted-features";
 import {
   getOrganizeosPublishState,
@@ -129,7 +129,13 @@ const StatusLine = ({ state }: { state: OrganizeosPublishState }) => {
   }
 };
 
-const RestrictedFeaturesBanner = () => {
+/**
+ * Names the features in this site that the org's plan does not cover, so the
+ * admin knows what will not work once it is live. The pointer is the org's
+ * Website area, not "ask your administrator": everyone who can open an org
+ * project is one.
+ */
+const RestrictedFeaturesBanner = ({ manageUrl }: { manageUrl: string }) => {
   const restrictedFeatures = useStore($restrictedFeatures);
   if (restrictedFeatures.size === 0) {
     return;
@@ -167,7 +173,18 @@ const RestrictedFeaturesBanner = () => {
           </li>
         ))}
       </Text>
-      <Text>{planUpgradeHint}</Text>
+      <Text>
+        Your organization&apos;s plan is managed in {platformName}.{" "}
+        <Link
+          href={manageUrl}
+          target="_blank"
+          rel="noreferrer"
+          color="inherit"
+          variant="inherit"
+        >
+          Open the Website area
+        </Link>
+      </Text>
     </PanelBanner>
   );
 };
@@ -312,7 +329,7 @@ export const OrganizeosPublishContent = ({
 
       <StatusLine state={state} />
       {error !== undefined && <Text color="destructive">{error}</Text>}
-      <RestrictedFeaturesBanner />
+      <RestrictedFeaturesBanner manageUrl={site.manageUrl} />
 
       <Tooltip
         content={

@@ -38,9 +38,10 @@ import {
 import { $systemDataByPage, updateCurrentSystem } from "../system";
 import { registerContainers } from "../sync/sync-stores";
 import { $resourcesCache, getResourceKey } from "../resources";
+import { publisherHost } from "~/shared/branding";
 
 const initialSystem = {
-  origin: "https://undefined.wstd.work",
+  origin: `https://undefined.${publisherHost}`,
   params: {},
   pathname: "/",
   search: {},
@@ -725,7 +726,7 @@ test("use page system values in props", () => {
       [
         getInstanceKey(["bodyId"]),
         new Map<string, unknown>([
-          ["data-origin", "https://undefined.wstd.work"],
+          ["data-origin", `https://undefined.${publisherHost}`],
         ]),
       ],
     ])
@@ -771,7 +772,7 @@ test("use global system values in props", () => {
       [
         getInstanceKey(["bodyId"]),
         new Map<string, unknown>([
-          ["data-origin", "https://undefined.wstd.work"],
+          ["data-origin", `https://undefined.${publisherHost}`],
         ]),
       ],
     ])
@@ -1216,7 +1217,7 @@ test("provide page system variable value", () => {
     params: { slug: "my-post" },
     pathname: "/",
     search: {},
-    origin: "https://undefined.wstd.work",
+    origin: `https://undefined.${publisherHost}`,
   });
 });
 
@@ -1248,7 +1249,7 @@ test("provide global system variable value", () => {
     params: { slug: "my-post" },
     pathname: "/",
     search: {},
-    origin: "https://undefined.wstd.work",
+    origin: `https://undefined.${publisherHost}`,
   };
   expect($variableValuesByInstanceSelector.get()).toEqual(
     new Map([

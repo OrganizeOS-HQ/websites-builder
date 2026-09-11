@@ -8,6 +8,7 @@ import {
   consumeSsoJti,
   organizeosSsoLogin,
   resolveSsoLandingUrl,
+  resolveSsoReturnTo,
 } from "./organizeos.server";
 
 beforeEach(() => {
@@ -352,5 +353,40 @@ describe("resolveSsoLandingUrl", () => {
     const header = b64url({ alg: "ES256", typ: "JWT" });
     const payload = b64url({ email: "admin@example.org" });
     expect(resolveSsoLandingUrl(`${header}.${payload}.sig`, ORIGIN)).toBeNull();
+  });
+});
+
+describe("resolveSsoReturnTo", () => {
+  const DEEP_LINK = "https://p-abc.builder.example.com/";
+  const DASHBOARD = "/dashboard";
+  const resolve = (
+    storedReturnTo: string | null,
+    deepLink: string | null = DEEP_LINK
+  ) =>
+    resolveSsoReturnTo({ storedReturnTo, deepLink, dashboardPath: DASHBOARD });
+
+  test("lands on the org's project when nothing was stored", () => {
+    expect(resolve(null)).toBe(DEEP_LINK);
+  });
+
+  test("honours a stored returnTo that goes somewhere else", () => {
+    // Mid-flow re-authentication is the case the cookie exists for.
+    expect(resolve("https://p-abc.builder.example.com/?pageId=home")).toBe(
+      "https://p-abc.builder.example.com/?pageId=home"
+    );
+  });
+
+  test.each([DASHBOARD, "/dashboard/search", "/dashboard?workspaceId=ws-1"])(
+    "ignores a stored returnTo pointing at the fork dashboard (%j)",
+    (stored) => {
+      // Any earlier visit to /login sets this cookie; it used to outrank the
+      // deep link and drop the admin on a dashboard OrganizeOS does not use.
+      expect(resolve(stored)).toBe(DEEP_LINK);
+    }
+  );
+
+  test("falls back to the dashboard only when there is no deep link", () => {
+    expect(resolve(null, null)).toBe(DASHBOARD);
+    expect(resolve(DASHBOARD, null)).toBe(DASHBOARD);
   });
 });

@@ -2,19 +2,10 @@ import type { Instance } from "@webstudio-is/sdk";
 import { SettingsSection } from "./settings-section";
 import { PropsSectionContainer } from "./props-section/props-section";
 import { VariablesSection } from "./variables-section";
-import {
-  Box,
-  Flex,
-  PanelBanner,
-  Text,
-  rawTheme,
-  theme,
-} from "@webstudio-is/design-system";
-import { UpgradeIcon } from "@webstudio-is/icons";
+import { Box, PanelBanner, Text, theme } from "@webstudio-is/design-system";
 import { useStore } from "@nanostores/react";
-import cmsUpgradeBanner from "~/shared/cms-upgrade-banner.svg?url";
 import { $isDesignMode, $permissions } from "~/shared/nano-states";
-import { planUpgradeHint } from "~/shared/branding";
+import { planUpgradeHint, platformName } from "~/shared/branding";
 
 export const SettingsPanel = ({
   selectedInstance,
@@ -37,26 +28,20 @@ export const SettingsPanel = ({
 
       {isDesignMode && <VariablesSection />}
 
+      {/* OrganizeOS fork: upstream sold its CMS here, with marketing artwork
+          and a "CMS on custom domains / preview on staging on any plan" pitch.
+          An OrganizeOS site has one address and no staging, so that sentence
+          was simply untrue; this is the only plan gate an org can trip. */}
       {allowDynamicData === false && (
         <PanelBanner>
-          <img
-            src={cmsUpgradeBanner}
-            alt="CMS"
-            width={rawTheme.spacing[28]}
-            style={{ aspectRatio: "4.1" }}
-          />
           <Text variant="regularBold">
-            CMS on custom domains is not included in your plan
+            Binding external data is not included in your plan
           </Text>
           <Text>
-            Integrate content from other tools to create blogs, directories, and
-            any other structured content. You can preview CMS on staging on any
-            plan.
+            Data binding pulls live content from {platformName} into your site,
+            so pages like events and donations stay current on their own.
           </Text>
-          <Flex align="center" gap={1}>
-            <UpgradeIcon />
-            <Text>{planUpgradeHint}</Text>
-          </Flex>
+          <Text>{planUpgradeHint}</Text>
         </PanelBanner>
       )}
     </Box>

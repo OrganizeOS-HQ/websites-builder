@@ -124,25 +124,73 @@ const calculateUnitSizes = (element: HTMLElement): UnitSizes => {
   };
 };
 
+/** Read a resolved computed value through CSS Typed OM (Chromium only). */
+const parseTypedUnitValue = (
+  property: string,
+  propertyValue: string
+): UnitValue | undefined => {
+  try {
+    const value = CSSStyleValue.parse(property, propertyValue);
+    if (value instanceof CSSUnitValue) {
+      return {
+        type: "unit",
+        // px | number | percent etc
+        unit:
+          value.unit === "percent" ? "%" : (value.unit as UnitValue["unit"]),
+        value: value.value,
+      };
+    }
+  } catch {
+    // failed with unknown property like -moz-osx-font-smoothing
+  }
+};
+
+// A resolved computed value: a number with an optional unit ("1280px", "50%",
+// "0"). Anything else ("auto", "normal", "rgb(0, 0, 0)") has no unit value,
+// which is also what the Typed OM path yields for it.
+const computedUnitValue = /^(-?\d*\.?\d+)([a-z%]*)$/i;
+
+/**
+ * Same reading without CSS Typed OM.
+ *
+ * Firefox and Safari have no `CSSStyleValue`, so the Typed OM path threw on
+ * every property there and left propertySizes empty. The style panel's
+ * keyword-to-unit conversion then fell back to 0 (see css-value-input), which
+ * silently turned `width: auto` into `0px` the moment an admin picked a unit.
+ * getComputedStyle has already resolved the value, so parsing the number and
+ * unit off the string gives the same answer.
+ */
+const parseComputedUnitValue = (
+  propertyValue: string
+): UnitValue | undefined => {
+  const match = computedUnitValue.exec(propertyValue.trim());
+  if (match === null) {
+    return;
+  }
+  const value = Number.parseFloat(match[1]);
+  if (Number.isFinite(value) === false) {
+    return;
+  }
+  return {
+    type: "unit",
+    unit: (match[2] === "" ? "number" : match[2]) as UnitValue["unit"],
+    value,
+  };
+};
+
+export const __testing__ = { parseComputedUnitValue };
+
 const calculatePropertySizes = (element: HTMLElement) => {
   const computedStyle = getComputedStyle(element);
+  const hasTypedOm = typeof CSSStyleValue !== "undefined";
   const propertySizes: PropertySizes = {};
   for (const property in propertiesData) {
-    try {
-      const propertyValue = computedStyle.getPropertyValue(property);
-      const value = CSSStyleValue.parse(property, propertyValue);
-      if (value instanceof CSSUnitValue) {
-        propertySizes[property as CssProperty] = {
-          type: "unit",
-          // px | number | percent etc
-          unit:
-            value.unit === "percent" ? "%" : (value.unit as UnitValue["unit"]),
-          value: value.value,
-        };
-      }
-    } catch (error) {
-      // failed with unknown property like -moz-osx-font-smoothing
-      // also firefox does not support CSSStyleValue
+    const propertyValue = computedStyle.getPropertyValue(property);
+    const unitValue = hasTypedOm
+      ? parseTypedUnitValue(property, propertyValue)
+      : parseComputedUnitValue(propertyValue);
+    if (unitValue !== undefined) {
+      propertySizes[property as CssProperty] = unitValue;
     }
   }
   return propertySizes;

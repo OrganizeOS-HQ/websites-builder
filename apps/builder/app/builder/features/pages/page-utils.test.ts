@@ -49,12 +49,13 @@ import { $selectedPageId } from "~/shared/nano-states";
 import { updateCurrentSystem } from "~/shared/system";
 import { $resourcesCache, getResourceKey } from "~/shared/resources";
 import { expectSlotTreeIntegrity } from "~/shared/slot-test-utils";
+import { publisherHost } from "~/shared/branding";
 
 setEnv("*");
 registerContainers();
 
 const initialSystem = {
-  origin: "https://undefined.wstd.work",
+  origin: `https://undefined.${publisherHost}`,
   params: {},
   pathname: "/",
   search: {},
@@ -735,7 +736,7 @@ test("page root scope should provide page system variable value", () => {
     aliases: new Map([["$ws$dataSource$systemId", "system"]]),
     scope: {
       $ws$dataSource$systemId: {
-        origin: "https://undefined.wstd.work",
+        origin: `https://undefined.${publisherHost}`,
         params: {},
         pathname: "/",
         search: {},
@@ -748,7 +749,7 @@ test("page root scope should provide page system variable value", () => {
           params: {},
           pathname: "/",
           search: {},
-          origin: "https://undefined.wstd.work",
+          origin: `https://undefined.${publisherHost}`,
         },
       ],
     ]),
@@ -763,7 +764,7 @@ test("page root scope should provide page system variable value", () => {
         params: { slug: "my-post" },
         pathname: "/",
         search: {},
-        origin: "https://undefined.wstd.work",
+        origin: `https://undefined.${publisherHost}`,
       },
     },
     variableValues: new Map([
@@ -773,7 +774,7 @@ test("page root scope should provide page system variable value", () => {
           params: { slug: "my-post" },
           pathname: "/",
           search: {},
-          origin: "https://undefined.wstd.work",
+          origin: `https://undefined.${publisherHost}`,
         },
       ],
     ]),

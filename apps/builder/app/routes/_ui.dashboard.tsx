@@ -32,6 +32,7 @@ import { findAuthenticatedUser } from "~/services/auth.server";
 import { createContext } from "~/shared/context.server";
 import { isDowngradedForMember } from "~/dashboard/workspace/utils";
 import { loadWorkspacesForDashboard } from "~/dashboard/workspace/loader.server";
+import { resolveOrganizeosDashboardExit } from "~/shared/db/organizeos-site.server";
 import type { DashboardData } from "~/dashboard/shared/types";
 import { productName } from "~/shared/branding";
 
@@ -100,6 +101,36 @@ const loadDashboardData = async (request: Request) => {
     role: resolvedRelation,
   } = wsResult;
   role = resolvedRelation;
+
+  // OrganizeOS admins do not use this dashboard; their site is managed from
+  // OrganizeOS. Send them back before any of it renders.
+  //
+  // Dev login is exempt: local development seeds real orgs through
+  // /internal/provision with real admin emails, so a developer signing in as
+  // one of those admins would be thrown out to the OrganizeOS app and lose the
+  // local dashboard entirely.
+  //
+  // Fail open on any error, and never redirect to our own origin — a
+  // misconfigured ORGANIZEOS_APP_URL should degrade to showing the dashboard
+  // rather than bouncing the request back into this same loader.
+  if (env.DEV_LOGIN !== "true") {
+    try {
+      const exitUrl = await resolveOrganizeosDashboardExit(context, {
+        userId: user.id,
+        workspaces,
+        publisherHost: env.PUBLISHER_HOST,
+        platformUrl: env.ORGANIZEOS_APP_URL,
+      });
+      if (exitUrl !== undefined && new URL(exitUrl).origin !== url.origin) {
+        throw redirect(exitUrl);
+      }
+    } catch (error) {
+      if (error instanceof Response) {
+        throw error;
+      }
+      console.error("[dashboard] could not resolve the OrganizeOS exit", error);
+    }
+  }
 
   if (currentWorkspaceId !== undefined) {
     findManyInput.workspaceId = currentWorkspaceId;

@@ -16,7 +16,7 @@ import {
   useCallback,
   useMemo,
 } from "react";
-import { CopyIcon, RefreshIcon, UpgradeIcon } from "@webstudio-is/icons";
+import { CopyIcon, RefreshIcon } from "@webstudio-is/icons";
 import {
   Box,
   Button,
@@ -579,13 +579,10 @@ const VariablePanelForm = forwardRef<
         {requiresUpgrade && (
           <PanelBanner>
             <Text>
-              Resource fetching is part of the CMS functionality, which is not
-              included in your plan.
+              Binding external data is not included in your plan, so this
+              variable will not fetch anything.
             </Text>
-            <Flex align="center" gap={1}>
-              <UpgradeIcon />
-              <Text>{planUpgradeHint}</Text>
-            </Flex>
+            <Text>{planUpgradeHint}</Text>
           </PanelBanner>
         )}
         <Flex

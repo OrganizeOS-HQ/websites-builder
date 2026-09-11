@@ -159,3 +159,117 @@ export const resolveOrganizeosSite = ({
     platformUrl: platformUrl.replace(/\/+$/, ""),
   };
 };
+
+/** The slice of a dashboard workspace row this module needs. */
+export type DashboardWorkspace = {
+  id: string;
+  /** The workspace OWNER's user id; an org workspace is owned by its service account. */
+  userId: string;
+  /** The signed-in user's relation to it; "own" means they own it. */
+  role: string;
+};
+
+/**
+ * Where to send a signed-in user who has landed on the fork dashboard, or
+ * undefined to let them see it.
+ *
+ * The dashboard is upstream's personal-account surface and OrganizeOS does not
+ * use it: SSO deep-links an admin straight into their org's project, and the
+ * builder menu sends them back to OrganizeOS. What is left is upstream-shaped
+ * in ways that are wrong for an org admin (their org's workspace is listed
+ * under "Shared with me", below an empty personal workspace that opens by
+ * default) and in ways that are dangerous (New project, Duplicate and Transfer
+ * act on a project whose identity OrganizeOS derives, and Leave drops the
+ * admin's own access).
+ *
+ * An admin is identified from data rather than from a session flag: they are a
+ * non-owner member of a workspace owned by an `organizeos-service` account.
+ * A user who ALSO owns projects here keeps the dashboard, because it is the
+ * only way to reach them - this sends back only the users whose entire
+ * presence in the builder is their organization's site.
+ */
+export const resolveOrganizeosDashboardExit = async (
+  context: AppContext,
+  {
+    userId,
+    workspaces,
+    publisherHost,
+    platformUrl,
+  }: {
+    userId: string;
+    workspaces: ReadonlyArray<DashboardWorkspace>;
+    publisherHost: string;
+    platformUrl: string;
+  }
+): Promise<string | undefined> => {
+  const client = context.postgrest.client;
+  const home = platformUrl.replace(/\/+$/, "");
+
+  const memberWorkspaces = workspaces.filter(
+    (workspace) => workspace.role !== "own"
+  );
+  if (memberWorkspaces.length === 0) {
+    return undefined;
+  }
+
+  const owners = await client
+    .from("User")
+    .select("id, provider, email")
+    .in("id", [
+      ...new Set(memberWorkspaces.map((workspace) => workspace.userId)),
+    ])
+    .eq("provider", ORGANIZEOS_SERVICE_PROVIDER);
+  if (owners.error) {
+    throw owners.error;
+  }
+  const serviceOwners = new Map(owners.data.map((owner) => [owner.id, owner]));
+  const orgWorkspaces = memberWorkspaces.filter((workspace) =>
+    serviceOwners.has(workspace.userId)
+  );
+  if (orgWorkspaces.length === 0) {
+    return undefined;
+  }
+
+  const ownProjects = await client
+    .from("Project")
+    .select("id", { count: "exact", head: true })
+    .eq("userId", userId)
+    .eq("isDeleted", false);
+  if (ownProjects.error) {
+    throw ownProjects.error;
+  }
+  if ((ownProjects.count ?? 0) > 0) {
+    return undefined;
+  }
+
+  // An admin of several orgs has no single Website area to land on.
+  const orgWorkspace =
+    orgWorkspaces.length === 1 ? orgWorkspaces[0] : undefined;
+  if (orgWorkspace === undefined) {
+    return home;
+  }
+
+  const owner = serviceOwners.get(orgWorkspace.userId);
+  const project = await client
+    .from("Project")
+    .select("domain")
+    .eq("workspaceId", orgWorkspace.id)
+    .eq("isDeleted", false)
+    .limit(1)
+    .maybeSingle();
+  if (project.error) {
+    throw project.error;
+  }
+  if (owner === undefined || project.data === null) {
+    return home;
+  }
+
+  return (
+    resolveOrganizeosSite({
+      owner,
+      projectDomain: project.data.domain,
+      publisherHost,
+      platformUrl,
+    })?.manageUrl ?? home
+  );
+};
