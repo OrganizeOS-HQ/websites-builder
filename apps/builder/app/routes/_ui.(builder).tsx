@@ -234,8 +234,15 @@ export const loader = async (loaderArgs: LoaderFunctionArgs) => {
       .select("provider, email")
       .eq("id", project.userId)
       .maybeSingle();
+    if (owner.error) {
+      // Fail closed. Swallowing this would resolve organizeosSite to undefined
+      // and silently hand an org admin the full upstream chrome on their org's
+      // project — Share, Export, Clone and the Webstudio publish dialog, none
+      // of which are safe there. Every other lookup in this loader throws too.
+      throw owner.error;
+    }
     const organizeosSite =
-      owner.error || owner.data === null
+      owner.data === null
         ? undefined
         : resolveOrganizeosSite({
             owner: owner.data,
