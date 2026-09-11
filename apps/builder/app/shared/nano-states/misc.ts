@@ -430,9 +430,11 @@ export const toggleBuilderMode = (mode: BuilderMode) => {
 
 export const setBuilderMode = (mode: BuilderMode | null) => {
   if (mode === "content" && !$isContentModeAllowed.get()) {
-    // This is content link from a non pro user, we don't allow content mode for such links
+    // The link's author is on a plan without content editing. Upstream named a
+    // Webstudio tier here; OrganizeOS plans are org entitlements, and the
+    // author is a different person than the viewer, so name neither.
     toast.info(
-      "Content mode is not available for this link. The link’s author must have a Pro plan."
+      "Content mode is not available for this link. The link’s author’s plan does not include it."
     );
 
     $builderMode.set("preview");

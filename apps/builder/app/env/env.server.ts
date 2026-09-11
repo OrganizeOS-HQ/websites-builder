@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { platformUrl } from "~/shared/branding";
+import { platformUrl, publisherHost } from "~/shared/branding";
 
 const environment = z.object({
   // Authentication
@@ -70,7 +70,10 @@ const environment = z.object({
   ENTRI_APPLICATION_ID: z.string().default("webstudio"),
   ENTRI_SECRET: z.string().optional(),
 
-  PUBLISHER_HOST: z.string().default("wstd.work"),
+  // An org's site is served at <subdomain>.<PUBLISHER_HOST>. Defaults to the
+  // OrganizeOS platform domain, not upstream's staging domain, so a missing
+  // env never makes the builder advertise a Webstudio address.
+  PUBLISHER_HOST: z.string().default(publisherHost),
 
   STAGING_USERNAME: z.string().default("admin"),
   STAGING_PASSWORD: z.string().default("webstudio"),

@@ -83,7 +83,16 @@ const provisionAndReadPlanProduct = async (entitlements?: {
       return empty({ status: 201 });
     }),
     db.delete("TransactionLog", () => empty({ status: 204 })),
-    db.get("Project", () => json({ id: deriveProjectId("org-1") }))
+    // Already provisioned and undrifted, so this path writes no Project patch.
+    db.get("Project", () =>
+      json({
+        id: deriveProjectId("org-1"),
+        domain: "acme",
+        isDeleted: false,
+        userId: deriveSyntheticUserId("org-1"),
+        workspaceId: deriveWorkspaceId("org-1"),
+      })
+    )
   );
 
   await provisionOrgWorkspace(testContext as unknown as AppContext, {
@@ -127,7 +136,14 @@ const provisionAndCaptureProject = async ({
     db.post("TransactionLog", () => empty({ status: 201 })),
     db.delete("TransactionLog", () => empty({ status: 204 })),
     db.get("Project", () =>
-      existingProject === undefined ? json([]) : json(existingProject)
+      existingProject === undefined
+        ? json([])
+        : json({
+            isDeleted: false,
+            userId: deriveSyntheticUserId("org-1"),
+            workspaceId: deriveWorkspaceId("org-1"),
+            ...existingProject,
+          })
     ),
     db.post("Project", async ({ request }) => {
       inserted.push((await request.json()) as Record<string, unknown>);
@@ -206,6 +222,8 @@ describe("provisionOrgWorkspace lifecycle", () => {
           id: deriveProjectId("org-1"),
           domain: "acme",
           isDeleted: true,
+          userId: deriveSyntheticUserId("org-1"),
+          workspaceId: deriveWorkspaceId("org-1"),
         })
       ),
       db.patch("Project", async ({ request }) => {
@@ -240,7 +258,13 @@ describe("provisionOrgWorkspace lifecycle", () => {
       db.post("TransactionLog", () => empty({ status: 201 })),
       db.delete("TransactionLog", () => empty({ status: 204 })),
       db.get("Project", () =>
-        json({ id: deriveProjectId("org-1"), domain: "acme", isDeleted: false })
+        json({
+          id: deriveProjectId("org-1"),
+          domain: "acme",
+          isDeleted: false,
+          userId: deriveSyntheticUserId("org-1"),
+          workspaceId: deriveWorkspaceId("org-1"),
+        })
       ),
       db.patch("Project", async ({ request }) => {
         projectPatches.push((await request.json()) as Record<string, unknown>);
@@ -256,6 +280,48 @@ describe("provisionOrgWorkspace lifecycle", () => {
     });
 
     expect(projectPatches).toEqual([]);
+  });
+
+  test("re-provisioning re-attaches a project that was transferred away", async () => {
+    const projectPatches: Array<Record<string, unknown>> = [];
+    server.use(
+      db.post("User", () => empty({ status: 201 })),
+      db.post("Workspace", () => empty({ status: 201 })),
+      db.post("Product", () => empty({ status: 201 })),
+      db.post("TransactionLog", () => empty({ status: 201 })),
+      db.delete("TransactionLog", () => empty({ status: 204 })),
+      // The fork dashboard's Transfer action moved the org's project to a
+      // human's own workspace; nothing else would ever put it back, and the
+      // publisher resolves the org from the project owner's email, so the site
+      // would stop being publishable.
+      db.get("Project", () =>
+        json({
+          id: deriveProjectId("org-1"),
+          domain: "acme",
+          isDeleted: false,
+          userId: "some-human-user",
+          workspaceId: "some-other-workspace",
+        })
+      ),
+      db.patch("Project", async ({ request }) => {
+        projectPatches.push((await request.json()) as Record<string, unknown>);
+        return empty({ status: 204 });
+      })
+    );
+
+    await provisionOrgWorkspace(testContext as unknown as AppContext, {
+      organizationId: "org-1",
+      orgName: "Org One",
+      adminEmails: [],
+      subdomain: "acme",
+    });
+
+    expect(projectPatches).toEqual([
+      {
+        userId: deriveSyntheticUserId("org-1"),
+        workspaceId: deriveWorkspaceId("org-1"),
+      },
+    ]);
   });
 });
 
@@ -292,7 +358,13 @@ const provisionAndCaptureMembers = async ({
     db.post("TransactionLog", () => empty({ status: 201 })),
     db.delete("TransactionLog", () => empty({ status: 204 })),
     db.get("Project", () =>
-      json({ id: deriveProjectId("org-1"), domain: "acme", isDeleted: false })
+      json({
+        id: deriveProjectId("org-1"),
+        domain: "acme",
+        isDeleted: false,
+        userId: deriveSyntheticUserId("org-1"),
+        workspaceId: deriveWorkspaceId("org-1"),
+      })
     ),
     db.get("WorkspaceMember", () =>
       json(activeMemberIds.map((userId) => ({ userId })))

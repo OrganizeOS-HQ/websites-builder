@@ -14,7 +14,7 @@ import {
 import { InfoCircleIcon } from "@webstudio-is/icons";
 import { validateBasicAuth } from "@webstudio-is/wsauth";
 import type { Errors, OnChange, Values } from "./shared";
-import { planUpgradeHint } from "~/shared/branding";
+import { planBadgeLabel, planUpgradeHint } from "~/shared/branding";
 
 const emptyAuth: Values["auth"] = {
   login: "",
@@ -78,7 +78,7 @@ export const AuthSection = ({
             }}
           />
           <Label htmlFor={enableId}>Require login and password</Label>
-          {showUpgrade && <ProBadge>PRO</ProBadge>}
+          {showUpgrade && <ProBadge>{planBadgeLabel}</ProBadge>}
           <Tooltip
             content={
               <>
@@ -90,9 +90,8 @@ export const AuthSection = ({
                   <>
                     <br />
                     <Text>
-                      Page authentication is not included in your plan. You can
-                      still publish to staging; publishing to custom domains
-                      needs a plan that includes it. {planUpgradeHint}
+                      Page authentication is not included in your plan.{" "}
+                      {planUpgradeHint}
                     </Text>
                   </>
                 )}

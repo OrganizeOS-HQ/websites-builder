@@ -90,7 +90,7 @@ import {
   getResourceKey,
   invalidateResource,
 } from "~/shared/resources";
-import { planUpgradeHint } from "~/shared/branding";
+import { planBadgeLabel, planUpgradeHint } from "~/shared/branding";
 
 const NameField = ({
   variable,
@@ -222,7 +222,7 @@ const TypeField = ({
       label: (
         <Flex direction="row" gap="2" align="center">
           Resource
-          {allowDynamicData === false && <ProBadge>Pro</ProBadge>}
+          {allowDynamicData === false && <ProBadge>{planBadgeLabel}</ProBadge>}
         </Flex>
       ),
       description:
@@ -233,7 +233,7 @@ const TypeField = ({
       label: (
         <Flex direction="row" gap="2" align="center">
           GraphQL
-          {allowDynamicData === false && <ProBadge>Pro</ProBadge>}
+          {allowDynamicData === false && <ProBadge>{planBadgeLabel}</ProBadge>}
         </Flex>
       ),
       description:
@@ -244,7 +244,7 @@ const TypeField = ({
       label: (
         <Flex direction="row" gap="2" align="center">
           System Resource
-          {allowDynamicData === false && <ProBadge>Pro</ProBadge>}
+          {allowDynamicData === false && <ProBadge>{planBadgeLabel}</ProBadge>}
         </Flex>
       ),
       description: "A System Resource is a configuration for builder data.",

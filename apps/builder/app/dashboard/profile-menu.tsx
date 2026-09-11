@@ -9,16 +9,13 @@ import {
   Avatar,
   theme,
   Button,
-  ProBadge,
   DropdownMenuSeparator,
   Text,
   Flex,
 } from "@webstudio-is/design-system";
 import { useNavigate } from "@remix-run/react";
-import { useStore } from "@nanostores/react";
-import { logoutPath, planSubscriptionPath } from "~/shared/router-utils";
+import { logoutPath } from "~/shared/router-utils";
 import type { User } from "~/shared/db/user.server";
-import { $purchases } from "~/shared/nano-states";
 
 const getAvatarLetter = (title?: string) => {
   return (title || "X").charAt(0).toLocaleUpperCase();
@@ -31,9 +28,8 @@ const ProfileButton = forwardRef<
   {
     name: string;
     image?: string;
-    hasPurchases?: boolean;
   }
->(({ image, name, hasPurchases, ...rest }, forwardedRef) => {
+>(({ image, name, ...rest }, forwardedRef) => {
   return (
     <Flex gap="2" align="center">
       <Button
@@ -56,55 +52,29 @@ const ProfileButton = forwardRef<
           </Text>
         )}
       </Button>
-      {hasPurchases === false && (
-        <ProBadge css={{ flexShrink: 0 }}>Free</ProBadge>
-      )}
     </Flex>
   );
 });
 
+/**
+ * OrganizeOS fork: no plan badge and no plans list. Plans here are org
+ * entitlements resolved by OrganizeOS, so there are never Stripe purchases to
+ * list, the badge labelled every single user "Free", and the per-purchase item
+ * navigated to a billing-portal route this deployment does not serve.
+ */
 export const ProfileMenu = ({ user }: { user: User }) => {
   const navigate = useNavigate();
   const nameOrEmail = user.username ?? user.email ?? defaultUserName;
-  const purchases = useStore($purchases);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <ProfileButton
-          image={user.image || undefined}
-          name={nameOrEmail}
-          hasPurchases={purchases.length > 0}
-        />
+        <ProfileButton image={user.image || undefined} name={nameOrEmail} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" width="regular">
         <DropdownMenuLabel>
           {user.username ?? defaultUserName}
           <Text>{user.email}</Text>
         </DropdownMenuLabel>
-        {purchases.length > 0 && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Plans</DropdownMenuLabel>
-          </>
-        )}
-        {purchases.map((purchase, index) =>
-          purchase.subscriptionId ? (
-            <DropdownMenuItem
-              key={purchase.subscriptionId}
-              onSelect={() => {
-                window.location.href = planSubscriptionPath(
-                  purchase.subscriptionId
-                );
-              }}
-            >
-              {purchase.planName}
-            </DropdownMenuItem>
-          ) : (
-            <DropdownMenuLabel key={index}>
-              {purchase.planName}
-            </DropdownMenuLabel>
-          )
-        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => navigate(logoutPath())}>
           Sign Out

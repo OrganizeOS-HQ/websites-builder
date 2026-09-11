@@ -18,6 +18,7 @@ import type {
 } from "@webstudio-is/sdk";
 import type { Project } from "@webstudio-is/project";
 import type { MarketplaceProduct } from "@webstudio-is/project-build";
+import { publisherHost } from "~/shared/branding";
 
 export const $project = atom<Project | undefined>();
 
@@ -58,7 +59,7 @@ export const $styles = atom<Styles>(new Map());
 
 export const $marketplaceProduct = atom<undefined | MarketplaceProduct>();
 
-export const $publisherHost = atom<string>("wstd.work");
+export const $publisherHost = atom<string>(publisherHost);
 
 /**
  * Get initial values for all data stores.
@@ -77,7 +78,7 @@ const getInitialDataStoreValues = () => ({
   styleSourceSelections: new Map(),
   styles: new Map(),
   marketplaceProduct: undefined,
-  publisherHost: "wstd.work",
+  publisherHost,
 });
 
 /**

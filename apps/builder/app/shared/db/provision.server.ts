@@ -159,7 +159,7 @@ export const provisionOrgWorkspace = async (
   // 3. Project owned by the synthetic account, in the org's workspace.
   const existingProject = await client
     .from("Project")
-    .select("id, isDeleted")
+    .select("id, isDeleted, userId, workspaceId")
     .eq("id", projectId)
     .maybeSingle();
   if (existingProject.error) {
@@ -188,19 +188,33 @@ export const provisionOrgWorkspace = async (
       throw attachOwner.error;
     }
   } else {
-    // Re-sync. An org that re-enables after an offboard gets its project back
-    // (the offboard only soft-deleted it), and an org whose subdomain changed
-    // (or that was provisioned before the caller sent one) converges on its
-    // current address.
+    // Re-sync. The org's project identity is derived, so re-provisioning
+    // re-asserts all of it: the soft-delete an offboard left behind, and the
+    // owner and workspace, which the fork dashboard's Transfer action can move
+    // out from under OrganizeOS. A transferred project would otherwise be
+    // unrecoverable — the publisher resolves the org from the project owner's
+    // email, so it stops being publishable, and nothing else puts it back.
+    const drifted: Record<string, unknown> = {};
     if (existingProject.data.isDeleted === true) {
+      drifted.isDeleted = false;
+    }
+    if (existingProject.data.userId !== serviceUserId) {
+      drifted.userId = serviceUserId;
+    }
+    if (existingProject.data.workspaceId !== workspaceId) {
+      drifted.workspaceId = workspaceId;
+    }
+    if (Object.keys(drifted).length > 0) {
       const restoreProject = await client
         .from("Project")
-        .update({ isDeleted: false })
+        .update(drifted)
         .eq("id", projectId);
       if (restoreProject.error) {
         throw restoreProject.error;
       }
     }
+    // An org whose subdomain changed (or that was provisioned before the caller
+    // sent one) converges on its current address.
     await syncOrgProjectDomain(context, {
       projectId,
       organizationId,

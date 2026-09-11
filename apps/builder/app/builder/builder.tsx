@@ -42,6 +42,7 @@ import { $project } from "~/shared/sync/data-stores";
 import { $settings, type Settings } from "./shared/client-settings";
 import { builderUrl, getCanvasUrl } from "~/shared/router-utils";
 import { BlockingAlerts } from "./features/blocking-alerts";
+import { productName } from "~/shared/branding";
 import { useSyncPageUrl } from "~/shared/pages";
 import { useMount, useUnmount } from "~/shared/hook-utils/use-mount";
 import { subscribeCommands } from "~/builder/shared/commands";
@@ -90,7 +91,7 @@ import { useDisableContextMenu } from "./shared/use-disable-context-menu";
 const useSetWindowTitle = () => {
   const project = useStore($project);
   useEffect(() => {
-    document.title = `${project?.title} | Webstudio`;
+    document.title = `${project?.title} | ${productName}`;
   }, [project?.title]);
 };
 

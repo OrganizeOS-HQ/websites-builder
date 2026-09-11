@@ -28,6 +28,7 @@ import { serverSyncStore } from "~/shared/sync/sync-stores";
 import { sectionSpacing } from "./utils";
 import { CodeEditor } from "~/shared/code-editor";
 import { CopyToClipboard } from "~/shared/copy-to-clipboard";
+import { planBadgeLabel } from "~/shared/branding";
 
 const imgStyle = css({
   objectFit: "contain",
@@ -169,7 +170,7 @@ export const SectionGeneral = ({ projectId }: { projectId?: string }) => {
           >
             <InfoCircleIcon tabIndex={0} />
           </Tooltip>
-          {allowContactEmail === false && <ProBadge>Pro</ProBadge>}
+          {allowContactEmail === false && <ProBadge>{planBadgeLabel}</ProBadge>}
         </Flex>
         <InputErrorsTooltip
           errors={contactEmailError ? [contactEmailError] : undefined}

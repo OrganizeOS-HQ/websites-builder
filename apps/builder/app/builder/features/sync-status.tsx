@@ -148,15 +148,17 @@ export const SyncStatus = () => {
         variant="wrapped"
         content={
           <Text>
+            {/* OrganizeOS fork: the builder is an embedded surface, so the
+                copy talks about the user's changes rather than naming the
+                service they sync to. */}
             {isOnline ? (
               <>
                 Experiencing connectivity issues. Your changes will be synced
-                with Webstudio once resolved.
+                once resolved.
               </>
             ) : (
               <>
-                Offline changes will be synced with Webstudio once you go
-                online.
+                Offline changes will be synced once you go back online.
                 <br />
                 Please check your internet connection.
               </>
