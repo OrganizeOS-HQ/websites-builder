@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import {
   Box,
   Flex,
+  Link,
   List,
   ListItem,
   Text,
@@ -32,7 +33,7 @@ import { ProfileMenu } from "./profile-menu";
 import { Projects } from "./projects/projects";
 import { Welcome } from "./welcome/welcome";
 import { Header } from "./shared/layout";
-import { help } from "~/shared/help";
+import { sourceCodeLabel, sourceCodeUrl } from "~/shared/branding";
 import { SearchResults } from "./search/search-results";
 import type { DashboardData } from "./shared/types";
 import { Search } from "./search/search-field";
@@ -307,21 +308,30 @@ export const Dashboard = () => {
               </CollapsibleSection>
             )}
           </nav>
-          {/* OrganizeOS fork: upstream marketing (Inception promo banner and
-              the Follow-us social links) removed. The Help & support links
-              (docs, video tutorials, community) intentionally stay pointed at
-              upstream Webstudio resources. */}
+          {/* OrganizeOS fork: upstream marketing (the Inception promo banner,
+              the Follow-us social links) and the Help & support list of
+              Webstudio docs, tutorials and Discord are gone. What is left is
+              the AGPL section 13 source offer, kept quiet in the footer but
+              reachable from every dashboard page. */}
           <div />
-          <CollapsibleSection label="Help & support" fullWidth>
-            <NavigationItems
-              items={help.map((item) => ({
-                to: item.url,
-                target: "_blank",
-                prefix: item.icon,
-                children: item.label,
-              }))}
-            />
-          </CollapsibleSection>
+          <Flex
+            as="footer"
+            css={{
+              paddingInline: theme.panel.paddingInline,
+              paddingBlock: theme.spacing[5],
+            }}
+          >
+            <Link
+              href={sourceCodeUrl}
+              target="_blank"
+              rel="noreferrer"
+              color="moreSubtle"
+              variant="label"
+              underline="hover"
+            >
+              {sourceCodeLabel}
+            </Link>
+          </Flex>
         </Grid>
         {view === "projects" && (
           <Projects

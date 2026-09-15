@@ -6,17 +6,15 @@ import {
   InputErrorsTooltip,
   InputField,
   Label,
-  Link,
   ProBadge,
   Text,
   Tooltip,
-  buttonStyle,
   rawTheme,
-  theme,
 } from "@webstudio-is/design-system";
 import { InfoCircleIcon } from "@webstudio-is/icons";
 import { validateBasicAuth } from "@webstudio-is/wsauth";
 import type { Errors, OnChange, Values } from "./shared";
+import { planUpgradeHint } from "~/shared/branding";
 
 const emptyAuth: Values["auth"] = {
   login: "",
@@ -92,20 +90,10 @@ export const AuthSection = ({
                   <>
                     <br />
                     <Text>
-                      Page authentication is a Pro feature. You can publish to
-                      staging for free; upgrade to Pro to publish to custom
-                      domains.
+                      Page authentication is not included in your plan. You can
+                      still publish to staging; publishing to custom domains
+                      needs a plan that includes it. {planUpgradeHint}
                     </Text>
-                    <Link
-                      className={buttonStyle({ color: "gradient" })}
-                      css={{ marginTop: theme.spacing[5], width: "100%" }}
-                      color="contrast"
-                      underline="none"
-                      target="_blank"
-                      href="https://webstudio.is/pricing"
-                    >
-                      Upgrade
-                    </Link>
                   </>
                 )}
               </>

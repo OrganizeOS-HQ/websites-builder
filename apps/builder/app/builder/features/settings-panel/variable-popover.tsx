@@ -31,7 +31,6 @@ import {
   InputErrorsTooltip,
   InputField,
   Label,
-  Link,
   PanelBanner,
   ProBadge,
   ScrollArea,
@@ -91,6 +90,7 @@ import {
   getResourceKey,
   invalidateResource,
 } from "~/shared/resources";
+import { planUpgradeHint } from "~/shared/branding";
 
 const NameField = ({
   variable,
@@ -247,7 +247,7 @@ const TypeField = ({
           {allowDynamicData === false && <ProBadge>Pro</ProBadge>}
         </Flex>
       ),
-      description: "A System Resource is a configuration for Webstudio data.",
+      description: "A System Resource is a configuration for builder data.",
     },
   ];
   const options = new Map(optionsList.map((option) => [option.value, option]));
@@ -578,16 +578,13 @@ const VariablePanelForm = forwardRef<
       <>
         {requiresUpgrade && (
           <PanelBanner>
-            <Text>Resource fetching is part of the CMS functionality.</Text>
+            <Text>
+              Resource fetching is part of the CMS functionality, which is not
+              included in your plan.
+            </Text>
             <Flex align="center" gap={1}>
               <UpgradeIcon />
-              <Link
-                color="inherit"
-                target="_blank"
-                href="https://webstudio.is/pricing"
-              >
-                Upgrade to Pro
-              </Link>
+              <Text>{planUpgradeHint}</Text>
             </Flex>
           </PanelBanner>
         )}

@@ -33,11 +33,12 @@ import { createContext } from "~/shared/context.server";
 import { isDowngradedForMember } from "~/dashboard/workspace/utils";
 import { loadWorkspacesForDashboard } from "~/dashboard/workspace/loader.server";
 import type { DashboardData } from "~/dashboard/shared/types";
+import { productName } from "~/shared/branding";
 
 export const meta = () => {
   const metas: ReturnType<MetaFunction> = [];
 
-  metas.push({ title: "Webstudio Dashboard | Projects" });
+  metas.push({ title: `${productName} Dashboard | Projects` });
 
   return metas;
 };

@@ -5,7 +5,6 @@ import { VariablesSection } from "./variables-section";
 import {
   Box,
   Flex,
-  Link,
   PanelBanner,
   Text,
   rawTheme,
@@ -15,6 +14,7 @@ import { UpgradeIcon } from "@webstudio-is/icons";
 import { useStore } from "@nanostores/react";
 import cmsUpgradeBanner from "~/shared/cms-upgrade-banner.svg?url";
 import { $isDesignMode, $permissions } from "~/shared/nano-states";
+import { planUpgradeHint } from "~/shared/branding";
 
 export const SettingsPanel = ({
   selectedInstance,
@@ -41,25 +41,21 @@ export const SettingsPanel = ({
         <PanelBanner>
           <img
             src={cmsUpgradeBanner}
-            alt="Upgrade for CMS"
+            alt="CMS"
             width={rawTheme.spacing[28]}
             style={{ aspectRatio: "4.1" }}
           />
-          <Text variant="regularBold">Upgrade for CMS on custom domains</Text>
+          <Text variant="regularBold">
+            CMS on custom domains is not included in your plan
+          </Text>
           <Text>
             Integrate content from other tools to create blogs, directories, and
-            any other structured content. You can preview CMS on staging without
-            upgrading.
+            any other structured content. You can preview CMS on staging on any
+            plan.
           </Text>
           <Flex align="center" gap={1}>
             <UpgradeIcon />
-            <Link
-              color="inherit"
-              target="_blank"
-              href="https://webstudio.is/pricing"
-            >
-              Upgrade to Pro
-            </Link>
+            <Text>{planUpgradeHint}</Text>
           </Flex>
         </PanelBanner>
       )}

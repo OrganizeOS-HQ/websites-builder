@@ -59,7 +59,7 @@ const validateContactEmail = (
   const emails = contactEmail.split(/\s*,\s*/);
   if (emails.length > maxContactEmailsPerProject) {
     if (maxContactEmailsPerProject === 0) {
-      return `Upgrade to PRO to customize the contact email.`;
+      return `Customizing the contact email is not included in your plan.`;
     }
     return `Only ${maxContactEmailsPerProject} emails are allowed.`;
   }

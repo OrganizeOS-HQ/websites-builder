@@ -27,7 +27,6 @@ import {
   TextArea,
   Link,
   PanelBanner,
-  buttonStyle,
   toast,
   RadioGroup,
   Popover,
@@ -83,6 +82,7 @@ import {
   getRestrictedFeatures,
   type RestrictedFeature,
 } from "./restricted-features";
+import { planUpgradeHint } from "~/shared/branding";
 
 type ChangeProjectDomainProps = {
   project: Project;
@@ -772,17 +772,9 @@ const UpgradeBanner = ({ hasCustomDomains }: { hasCustomDomains: boolean }) => {
     return (
       <PanelBanner>
         <Text variant="regularBold">
-          Upgrade to publish more than {maxDailyPublishesPerUser} times per day:
+          Your plan allows {maxDailyPublishesPerUser} publishes per day.
         </Text>
-        <Link
-          className={buttonStyle({ color: "gradient" })}
-          color="contrast"
-          underline="none"
-          href="https://webstudio.is/pricing"
-          target="_blank"
-        >
-          Upgrade
-        </Link>
+        <Text>{planUpgradeHint}</Text>
       </PanelBanner>
     );
   }
@@ -794,7 +786,7 @@ const UpgradeBanner = ({ hasCustomDomains }: { hasCustomDomains: boolean }) => {
       <PanelBanner>
         <img
           src={cmsUpgradeBanner}
-          alt="Upgrade for CMS"
+          alt="CMS"
           width={rawTheme.spacing[28]}
           style={{ aspectRatio: "4.1" }}
         />
@@ -833,17 +825,12 @@ const UpgradeBanner = ({ hasCustomDomains }: { hasCustomDomains: boolean }) => {
           )}
         </Text>
         <Text>
-          You can delete these features or upgrade to publish to custom domains.
+          You can delete these features, or publish to custom domains on a plan
+          that includes them.
         </Text>
         <Flex align="center" gap={1}>
           <UpgradeIcon />
-          <Link
-            color="inherit"
-            target="_blank"
-            href="https://webstudio.is/pricing"
-          >
-            Upgrade to Pro
-          </Link>
+          <Text>{planUpgradeHint}</Text>
         </Flex>
       </PanelBanner>
     );
@@ -852,20 +839,12 @@ const UpgradeBanner = ({ hasCustomDomains }: { hasCustomDomains: boolean }) => {
     return (
       <PanelBanner>
         <Text variant="regular">
-          <Text variant="regularBold" inline>
-            Upgrade to a Pro account
-          </Text>{" "}
-          to add unlimited domains and publish to each domain individually.
+          Adding unlimited domains and publishing to each domain individually is
+          not included in your plan.
         </Text>
         <Flex align="center" gap={1}>
           <UpgradeIcon />
-          <Link
-            color="inherit"
-            target="_blank"
-            href="https://webstudio.is/pricing"
-          >
-            Upgrade to Pro
-          </Link>
+          <Text>{planUpgradeHint}</Text>
         </Flex>
       </PanelBanner>
     );

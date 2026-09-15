@@ -77,7 +77,6 @@ import {
 } from "~/shared/copy-paste/copy-paste";
 import { useInertHandlers } from "./shared/inert-handlers";
 import { TextToolbar } from "./features/workspace/canvas-tools/text-toolbar";
-import { RemoteDialog } from "./features/help/remote-dialog";
 import {
   startSubscription,
   stopSubscription,
@@ -528,7 +527,6 @@ export const Builder = (props: BuilderProps) => {
         <DeleteUnusedAssetsDialog />
         <KeyboardShortcutsDialog />
         <TokenConflictDialog />
-        <RemoteDialog />
         <Toaster />
       </div>
     </TooltipProvider>

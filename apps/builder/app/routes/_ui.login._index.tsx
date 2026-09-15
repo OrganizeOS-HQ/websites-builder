@@ -1,5 +1,4 @@
 import {
-  type LinksFunction,
   type LoaderFunctionArgs,
   type TypedResponse,
   json,
@@ -23,30 +22,22 @@ import { redirect } from "~/services/no-store-redirect";
 import { allowedDestinations } from "~/services/destinations.server";
 import { createPrivateNoStoreHeaders } from "~/services/cache-control.server";
 export { ErrorBoundary } from "~/shared/error/error-boundary";
-
-export const links: LinksFunction = () => {
-  return [
-    {
-      rel: "canonical",
-      href: "https://apps.webstudio.is/login",
-    },
-  ];
-};
+import { productName } from "~/shared/branding";
 
 export const meta: MetaFunction<typeof loader> = () => {
   const metas: ReturnType<MetaFunction> = [
     {
       name: "title",
-      content: "Webstudio Login",
+      content: `${productName} Login`,
     },
     {
       name: "description",
-      content: "Log in to Webstudio to start creating websites.",
+      content: `Log in to ${productName} to start creating websites.`,
     },
     { name: "robots", content: "index, follow" },
   ];
 
-  metas.push({ title: "Webstudio Login" });
+  metas.push({ title: `${productName} Login` });
 
   return metas;
 };

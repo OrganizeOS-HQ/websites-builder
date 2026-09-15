@@ -28,8 +28,6 @@ import {
   keyframes,
   Text,
   InputField,
-  Link,
-  buttonStyle,
   IconButton,
   Checkbox,
   Grid,
@@ -43,6 +41,7 @@ import {
   UpgradeIcon,
 } from "@webstudio-is/icons";
 import { CopyToClipboard } from "~/shared/copy-to-clipboard";
+import { planUpgradeHint } from "~/shared/branding";
 import { useIds } from "../form-utils";
 import type { BuilderMode } from "../nano-states";
 
@@ -55,33 +54,15 @@ const Item = (props: ComponentProps<typeof Flex>) => (
   />
 );
 
-const PricingUpgradeLink = ({
-  children = "Upgrade",
-}: {
-  children?: string;
-}) => (
-  <Link
-    className={buttonStyle({ color: "gradient" })}
-    color="contrast"
-    underline="none"
-    href="https://webstudio.is/pricing"
-    target="_blank"
-  >
-    {children}
-  </Link>
-);
-
 export const ShareLinkSecurityNotice = () => (
   <PanelBanner variant="warning">
     <Text>
-      Sharing links over insecure channels can expose project access. Upgrade to
-      the Team plan for safer collaboration.
+      Sharing links over insecure channels can expose project access. A plan
+      with Team collaboration makes sharing safer.
     </Text>
     <Flex align="center" gap={1}>
       <UpgradeIcon />
-      <Link color="inherit" target="_blank" href="https://webstudio.is/pricing">
-        Upgrade
-      </Link>
+      <Text>{planUpgradeHint}</Text>
     </Flex>
   </PanelBanner>
 );
@@ -238,9 +219,9 @@ const Menu = ({
                   <>
                     <br />
                     <br />
-                    Upgrade to a Pro account to set additional permissions.
+                    Additional permissions are not included in your plan.
                     <br /> <br />
-                    <PricingUpgradeLink />
+                    {planUpgradeHint}
                   </>
                 )}
               </Flex>
@@ -324,10 +305,10 @@ const Menu = ({
                   <>
                     <br />
                     <br />
-                    Upgrade to a Pro account to share with Content Edit
-                    permissions.
+                    Sharing with Content Edit permissions is not included in
+                    your plan.
                     <br /> <br />
-                    <PricingUpgradeLink />
+                    {planUpgradeHint}
                   </>
                 )}
               </Flex>
@@ -388,9 +369,9 @@ const Menu = ({
                   <>
                     <br />
                     <br />
-                    Upgrade to a Pro account to share with Admin permissions.
+                    Sharing with Admin permissions is not included in your plan.
                     <br /> <br />
-                    <PricingUpgradeLink />
+                    {planUpgradeHint}
                   </>
                 )}
               </Flex>

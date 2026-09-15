@@ -1,6 +1,5 @@
 import { useStore } from "@nanostores/react";
 import {
-  theme,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -19,7 +18,6 @@ import {
   $isShareDialogOpen,
   $isUiHidden,
   $publishDialog,
-  $remoteDialog,
 } from "~/builder/shared/nano-states";
 import { cloneProjectUrl, dashboardUrl } from "~/shared/router-utils";
 import {
@@ -27,14 +25,12 @@ import {
   $authToken,
   $authTokenPermissions,
   $isDesignMode,
-  $purchases,
 } from "~/shared/nano-states";
 import { emitCommand } from "~/builder/shared/commands";
 import { MenuButton } from "./menu-button";
 import { $openProjectSettings } from "~/shared/nano-states/project-settings";
-import { UpgradeIcon } from "@webstudio-is/icons";
 import { getSetting, setSetting } from "~/builder/shared/client-settings";
-import { help } from "~/shared/help";
+import { sourceCodeLabel, sourceCodeUrl } from "~/shared/branding";
 
 const ViewMenuItem = () => {
   const navigatorLayout = getSetting("navigatorLayout");
@@ -69,7 +65,6 @@ const ViewMenuItem = () => {
 };
 
 export const Menu = ({ defaultOpen }: { defaultOpen?: boolean } = {}) => {
-  const purchases = useStore($purchases);
   const authPermit = useStore($authPermit);
   const authTokenPermission = useStore($authTokenPermissions);
   const authToken = useStore($authToken);
@@ -271,44 +266,17 @@ export const Menu = ({ defaultOpen }: { defaultOpen?: boolean } = {}) => {
           </DropdownMenuItemRightSlot>
         </DropdownMenuItem>
 
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>Help</DropdownMenuSubTrigger>
-          <DropdownMenuSubContent width="regular">
-            {help.map((item) => (
-              <DropdownMenuItem
-                key={item.url}
-                onSelect={(event) => {
-                  if ("target" in item && item.target === "embed") {
-                    event.preventDefault();
-                    $remoteDialog.set({
-                      title: item.label,
-                      url: item.url,
-                    });
-                    return;
-                  }
-                  window.open(item.url);
-                }}
-              >
-                {item.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-
-        {purchases.length === 0 && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={() => {
-                window.open("https://webstudio.is/pricing");
-              }}
-              css={{ gap: theme.spacing[3] }}
-            >
-              <UpgradeIcon />
-              <div>Upgrade to Pro</div>
-            </DropdownMenuItem>
-          </>
-        )}
+        {/* OrganizeOS fork: the upstream Help submenu (Webstudio docs, video
+            tutorials, Discord) and the Upgrade-to-Pro checkout are gone. The
+            AGPL section 13 source offer stays, deliberately understated. */}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={() => {
+            window.open(sourceCodeUrl, "_blank", "noreferrer");
+          }}
+        >
+          {sourceCodeLabel}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

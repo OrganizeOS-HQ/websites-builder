@@ -13,9 +13,7 @@ import {
   Select,
   Text,
   Tooltip,
-  buttonStyle,
   rawTheme,
-  theme,
 } from "@webstudio-is/design-system";
 import {
   homePagePath,
@@ -42,6 +40,7 @@ import {
   wouldCreateLoop,
 } from "~/shared/redirects/redirect-loop-detection";
 import type { Errors, OnChange, Values } from "./shared";
+import { planUpgradeHint } from "~/shared/branding";
 
 // 2xx, 3xx, 4xx, 5xx
 const statusRegex = /^[2345]\d\d$/;
@@ -177,19 +176,10 @@ const PathField = ({
                   <br />
                   <Text>
                     To make the path dynamic and use it with CMS, you can use
-                    parameters and other features. You can publish to staging
-                    for free; upgrade to Pro to publish to custom domains.
+                    parameters and other features. You can still publish to
+                    staging; publishing to custom domains needs a plan that
+                    includes it. {planUpgradeHint}
                   </Text>
-                  <Link
-                    className={buttonStyle({ color: "gradient" })}
-                    css={{ marginTop: theme.spacing[5], width: "100%" }}
-                    color="contrast"
-                    underline="none"
-                    target="_blank"
-                    href="https://webstudio.is/pricing"
-                  >
-                    Upgrade
-                  </Link>
                 </>
               )}
             </>
@@ -330,20 +320,10 @@ const RedirectField = ({
                 <>
                   <br />
                   <Text>
-                    Redirects are a Pro publishing feature. You can publish to
-                    staging for free; upgrade to Pro to publish to custom
-                    domains.
+                    Redirects are not included in your plan. You can still
+                    publish to staging; publishing to custom domains needs a
+                    plan that includes them. {planUpgradeHint}
                   </Text>
-                  <Link
-                    className={buttonStyle({ color: "gradient" })}
-                    css={{ marginTop: theme.spacing[5], width: "100%" }}
-                    color="contrast"
-                    underline="none"
-                    target="_blank"
-                    href="https://webstudio.is/pricing"
-                  >
-                    Upgrade
-                  </Link>
                 </>
               )}
             </>

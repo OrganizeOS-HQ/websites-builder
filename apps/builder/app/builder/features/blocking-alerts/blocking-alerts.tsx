@@ -6,6 +6,7 @@ import { Link } from "@webstudio-is/design-system";
 import { $isPreviewMode } from "~/shared/nano-states";
 import { useStore } from "@nanostores/react";
 import { $loadingState } from "~/builder/shared/nano-states";
+import { productName } from "~/shared/branding";
 
 const useTooSmallMessage = () => {
   const [message, setMessage] = useState<string>();
@@ -15,7 +16,7 @@ const useTooSmallMessage = () => {
     const message =
       window.innerWidth >= minWidth
         ? undefined
-        : `Your browser window is too small. Resize your browser to at least ${minWidth}px wide to continue building with Webstudio.`;
+        : `Your browser window is too small. Resize your browser to at least ${minWidth}px wide to continue building with ${productName}.`;
     setMessage(message);
   };
 
@@ -33,7 +34,7 @@ const useUnsupportedBrowser = () => {
 
     setMessage(
       <>
-        The Webstudio Builder UI currently supports any{" "}
+        The {productName} builder UI currently supports any{" "}
         <Link
           href="https://en.wikipedia.org/wiki/Chromium_(web_browser)"
           target="_blank"

@@ -18,11 +18,12 @@ import {
   Text,
   ProBadge,
 } from "@webstudio-is/design-system";
-import { ChevronDownIcon, UpgradeIcon } from "@webstudio-is/icons";
+import { ChevronDownIcon } from "@webstudio-is/icons";
 import type { WorkspaceWithRelation } from "@webstudio-is/project";
 import { useNavigate, useLocation } from "@remix-run/react";
 import { useStore } from "@nanostores/react";
 import { $permissions } from "~/shared/nano-states";
+import { planUpgradeHint } from "~/shared/branding";
 import { CreateWorkspaceDialog } from "./create-workspace-dialog";
 import { RenameWorkspaceDialog } from "./rename-workspace-dialog";
 import { ManageMembersDialog } from "./manage-members-dialog";
@@ -237,19 +238,17 @@ export const WorkspaceSelector = ({
             Leave
           </DropdownMenuItem>
         )}
+        {/* OrganizeOS: plans are org entitlements, so there is nothing to buy
+            from here. State the limit instead of linking to a checkout. */}
         {permissions.canCreateWorkspace === false && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={() => {
-                window.open("https://webstudio.is/pricing");
-              }}
-            >
-              <Flex align="center" gap="1">
-                <UpgradeIcon />
-                <Text truncate>Upgrade</Text>
-              </Flex>
-            </DropdownMenuItem>
+            <DropdownMenuLabel>
+              <Text color="subtle">
+                Additional workspaces are not included in your plan.{" "}
+                {planUpgradeHint}
+              </Text>
+            </DropdownMenuLabel>
           </>
         )}
       </WorkspaceDropdown>

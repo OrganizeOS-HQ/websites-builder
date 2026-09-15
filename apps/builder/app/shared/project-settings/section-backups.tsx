@@ -14,7 +14,6 @@ import {
   theme,
   toast,
   PanelBanner,
-  Link,
   rawTheme,
 } from "@webstudio-is/design-system";
 import { UpgradeIcon } from "@webstudio-is/icons";
@@ -22,6 +21,7 @@ import { nativeClient, trpcClient } from "~/shared/trpc/trpc-client";
 import { $project } from "~/shared/sync/data-stores";
 import { $permissions } from "~/shared/nano-states";
 import { sectionSpacing } from "./utils";
+import { planUpgradeHint } from "~/shared/branding";
 import cmsUpgradeBanner from "../cms-upgrade-banner.svg?url";
 
 const formatPublishDate = (date: string) => {
@@ -131,20 +131,16 @@ export const SectionBackups = ({
         <PanelBanner>
           <img
             src={cmsUpgradeBanner}
-            alt="Upgrade for backups"
+            alt="Backups"
             width={rawTheme.spacing[28]}
             style={{ aspectRatio: "4.1" }}
           />
-          <Text variant="regularBold">Upgrade to restore from backups</Text>
+          <Text variant="regularBold">
+            Restoring from backups is not included in your plan
+          </Text>
           <Flex align="center" gap={1}>
             <UpgradeIcon />
-            <Link
-              color="inherit"
-              target="_blank"
-              href="https://webstudio.is/pricing"
-            >
-              Upgrade to Pro
-            </Link>
+            <Text>{planUpgradeHint}</Text>
           </Flex>
         </PanelBanner>
       )}

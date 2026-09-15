@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { Kbd, rawTheme, Text } from "@webstudio-is/design-system";
 import { useSubscribe, type Publish } from "~/shared/pubsub";
 import {
@@ -10,14 +10,12 @@ import { Flex } from "@webstudio-is/design-system";
 import { theme } from "@webstudio-is/design-system";
 import {
   ExtensionIcon,
-  HelpIcon,
   ImageIcon,
   NavigatorIcon,
   PageIcon,
   PlusIcon,
   type IconComponent,
 } from "@webstudio-is/icons";
-import { HelpCenter } from "../features/help/help-center";
 import { useStore } from "@nanostores/react";
 import {
   $activeSidebarPanel,
@@ -26,7 +24,6 @@ import {
 } from "~/builder/shared/nano-states";
 import { $selectedPage } from "~/shared/nano-states";
 import {
-  SidebarButton,
   SidebarTabs,
   SidebarTabsContent,
   SidebarTabsList,
@@ -48,22 +45,6 @@ import { MarketplacePanel } from "~/builder/features/marketplace";
 import type { SidebarPanelName } from "./types";
 
 const none = { Panel: () => null };
-
-const HelpTabTrigger = () => {
-  const [helpIsOpen, setHelpIsOpen] = useState(false);
-  return (
-    <HelpCenter onOpenChange={setHelpIsOpen}>
-      <HelpCenter.Trigger asChild>
-        <SidebarButton
-          label="Learn Webstudio or ask for help"
-          data-state={helpIsOpen ? "active" : undefined}
-        >
-          <HelpIcon size={rawTheme.spacing[10]} />
-        </SidebarButton>
-      </HelpCenter.Trigger>
-    </HelpCenter>
-  );
-};
 
 type PanelConfig = {
   name: SidebarPanelName;
@@ -281,8 +262,6 @@ export const SidebarLeft = ({ publish }: SidebarLeftProps) => {
                 })}
             </SidebarTabsList>
           </div>
-
-          <HelpTabTrigger />
         </Flex>
       )}
 
