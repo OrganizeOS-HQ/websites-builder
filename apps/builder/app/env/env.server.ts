@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { platformUrl, publisherHost } from "~/shared/branding";
 
 const environment = z.object({
   // Authentication
@@ -38,6 +39,14 @@ const environment = z.object({
   ORGANIZEOS_PUBLISH_REPO: z.string().optional(),
   ORGANIZEOS_PUBLISH_GITHUB_TOKEN: z.string().optional(),
 
+  // The OrganizeOS app the builder hands users back to (login page, the
+  // builder menu, the org's Website area). Defaults to production.
+  ORGANIZEOS_APP_URL: z
+    .string()
+    .url()
+    .optional()
+    .transform((value) => (value ?? platformUrl).replace(/\/+$/, "")),
+
   PORT: z
     .string()
     .optional()
@@ -61,7 +70,10 @@ const environment = z.object({
   ENTRI_APPLICATION_ID: z.string().default("webstudio"),
   ENTRI_SECRET: z.string().optional(),
 
-  PUBLISHER_HOST: z.string().default("wstd.work"),
+  // An org's site is served at <subdomain>.<PUBLISHER_HOST>. Defaults to the
+  // OrganizeOS platform domain, not upstream's staging domain, so a missing
+  // env never makes the builder advertise a Webstudio address.
+  PUBLISHER_HOST: z.string().default(publisherHost),
 
   STAGING_USERNAME: z.string().default("admin"),
   STAGING_PASSWORD: z.string().default("webstudio"),
@@ -113,6 +125,7 @@ const rawEnv = {
   ORGANIZEOS_SSO_PUBLIC_KEY: process.env.ORGANIZEOS_SSO_PUBLIC_KEY,
   ORGANIZEOS_PUBLISH_REPO: process.env.ORGANIZEOS_PUBLISH_REPO,
   ORGANIZEOS_PUBLISH_GITHUB_TOKEN: process.env.ORGANIZEOS_PUBLISH_GITHUB_TOKEN,
+  ORGANIZEOS_APP_URL: process.env.ORGANIZEOS_APP_URL,
   PORT: process.env.PORT,
   MAX_UPLOAD_SIZE: process.env.MAX_UPLOAD_SIZE,
   S3_ENDPOINT: process.env.S3_ENDPOINT,

@@ -23,6 +23,7 @@ import type {
 } from "@webstudio-is/sdk";
 import type { CssProperty, UnitValue } from "@webstudio-is/css-engine";
 import type { TokenPermissions } from "@webstudio-is/authorization-token";
+import type { OrganizeosSite } from "../organizeos-site";
 import type { AssetType } from "@webstudio-is/asset-uploader";
 import type { DragStartPayload } from "~/canvas/shared/use-drag-drop";
 import { type InstanceSelector } from "../instance-utils/tree";
@@ -358,6 +359,12 @@ export const $authToken = atom<string | undefined>(undefined);
 export const $stagingUsername = atom<string | undefined>();
 export const $stagingPassword = atom<string | undefined>();
 
+/**
+ * Set for projects owned by an OrganizeOS org (resolved by the builder
+ * loader); undefined for a human-owned project, which keeps upstream chrome.
+ */
+export const $organizeosSite = atom<OrganizeosSite | undefined>();
+
 export const $permissions = computed(
   [$planFeatures, $authPermit, $workspaceRole, $workspaces],
   (planFeatures, authPermit, role, workspaces) =>
@@ -423,9 +430,11 @@ export const toggleBuilderMode = (mode: BuilderMode) => {
 
 export const setBuilderMode = (mode: BuilderMode | null) => {
   if (mode === "content" && !$isContentModeAllowed.get()) {
-    // This is content link from a non pro user, we don't allow content mode for such links
+    // The link's author is on a plan without content editing. Upstream named a
+    // Webstudio tier here; OrganizeOS plans are org entitlements, and the
+    // author is a different person than the viewer, so name neither.
     toast.info(
-      "Content mode is not available for this link. The link’s author must have a Pro plan."
+      "Content mode is not available for this link. The link’s author’s plan does not include it."
     );
 
     $builderMode.set("preview");

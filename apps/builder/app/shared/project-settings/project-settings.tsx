@@ -24,10 +24,13 @@ import { SectionGeneral } from "./section-general";
 import { SectionAuth } from "./section-auth";
 import { SectionRedirects } from "./section-redirects";
 import { SectionPublish } from "./section-publish";
-import { SectionMarketplace } from "./section-marketplace";
 import { SectionBackups } from "./section-backups";
 import { titleCase } from "title-case";
 
+// OrganizeOS fork: no "marketplace" section. Upstream's submits the project to
+// the Webstudio template marketplace for review; this deployment has no
+// marketplace and no reviewer, so the section offered an action that goes
+// nowhere and flipped marketplaceApprovalStatus on the way.
 const sections = new Map<
   SectionName,
   FunctionComponent<{ projectId?: string }>
@@ -35,7 +38,6 @@ const sections = new Map<
   ["general", SectionGeneral],
   ["redirects", SectionRedirects],
   ["publish", SectionPublish],
-  ["marketplace", SectionMarketplace],
   ["backups", SectionBackups],
   ["auth", SectionAuth],
 ] as const);

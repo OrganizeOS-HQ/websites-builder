@@ -1,4 +1,9 @@
 import type { TrpcInterfaceClient } from "@webstudio-is/trpc-interface/index.server";
+import { platformName } from "~/shared/branding";
+import {
+  markBuildPublishStatus,
+  type BuildStatusClient,
+} from "~/shared/db/publish-status.server";
 
 /**
  * OrganizeOS publisher (Websites 2.0 Phase 5, slice 4).
@@ -6,7 +11,8 @@ import type { TrpcInterfaceClient } from "@webstudio-is/trpc-interface/index.ser
  * Implements the deployment publish seam: when an org admin clicks Publish,
  * domain.publish calls deploymentTrpc.publish.mutate. Instead of webstudio's
  * cloud publisher, this dispatches our publish-site GitHub Actions workflow
- * (the executor: CLI sync + build + deploy + pointer-flip callback).
+ * (the executor: CLI sync + build + deploy + pointer-flip callback), which
+ * reports the outcome back through the internal publish-status route.
  *
  * The workflow needs the ORGANIZATION id. The builder does not store it
  * directly, but every org project is owned by its synthetic service account,
@@ -18,6 +24,9 @@ import type { TrpcInterfaceClient } from "@webstudio-is/trpc-interface/index.ser
  */
 
 const SERVICE_EMAIL_PATTERN = /^org\+(.+)@svc\.organizeos\.internal$/;
+
+/** The executor workflow, which must exist on the publish repo's default branch. */
+const WORKFLOW_FILE = "publish-site.yml";
 
 /** Extract the organizationId from a synthetic service-owner email, or null. */
 export const parseOrganizationIdFromServiceEmail = (
@@ -37,6 +46,7 @@ type PostgrestLike = {
         single: () => Promise<{ data: unknown; error: unknown }>;
       };
     };
+    update: ReturnType<BuildStatusClient["from"]>["update"];
   };
 };
 
@@ -90,6 +100,37 @@ export const resolveOrganizationIdForBuild = async (
   return parseOrganizationIdFromServiceEmail(email);
 };
 
+const RETRY_MESSAGE = "Publishing could not be started. Please try again.";
+const SETUP_MESSAGE = `Publishing is not set up correctly for this site. Please contact ${platformName} support.`;
+
+/**
+ * Which failure the admin is looking at.
+ *
+ * A dispatch rejected for credentials, a missing repo or workflow, or a
+ * payload the workflow will not accept fails identically on the next click —
+ * telling the admin to "try again" wastes their time and hides a
+ * configuration problem nobody is watching for. A 5xx or a dropped connection
+ * genuinely may succeed on a retry.
+ *
+ * The distinction is the only thing that reaches the UI: the status code and
+ * the provider stay in the server log, never in product copy.
+ */
+const isSetupFailure = (status: number) =>
+  status === 401 || status === 403 || status === 404 || status === 422;
+
+/**
+ * A publish that never reached the executor would otherwise sit PENDING until
+ * the UI's timeout; mark it FAILED now so the admin sees the outcome at once.
+ * Best-effort: the user-facing error is already decided.
+ */
+const markFailed = async (client: PostgrestLike, buildId: string) => {
+  try {
+    await markBuildPublishStatus(client, { buildId, status: "FAILED" });
+  } catch (error) {
+    console.error("[organizeos-publisher] could not mark build failed", error);
+  }
+};
+
 /**
  * A deploymentTrpc drop-in whose publish dispatches the executor workflow.
  * Errors return generic copy (surfaced in the builder UI).
@@ -101,21 +142,38 @@ export const createOrganizeosPublisher = (
 
   const publisher = {
     publish: {
-      mutate: async (input: { buildId: string }) => {
+      mutate: async (input: {
+        buildId: string;
+        destination?: "saas" | "static";
+      }) => {
+        // The executor deploys the org's live site; a static export build
+        // must never be dispatched as one. Export is hidden for org projects,
+        // this is the server-side guarantee.
+        if (input.destination === "static") {
+          await markFailed(deps.client, input.buildId);
+          return {
+            success: false as const,
+            error: "Static export is not available for OrganizeOS sites.",
+          };
+        }
+
         const organizationId = await resolveOrganizationIdForBuild(
           deps.client,
           input.buildId
         );
         if (organizationId === null) {
+          await markFailed(deps.client, input.buildId);
           return {
             success: false as const,
             error: "This project cannot be published.",
           };
         }
 
-        const response = await fetcher(
-          `https://api.github.com/repos/${deps.repo}/actions/workflows/publish-site.yml/dispatches`,
-          {
+        const workflowUrl = `https://api.github.com/repos/${deps.repo}/actions/workflows/${WORKFLOW_FILE}/dispatches`;
+
+        let response: Response;
+        try {
+          response = await fetcher(workflowUrl, {
             method: "POST",
             headers: {
               Authorization: `Bearer ${deps.githubToken}`,
@@ -129,18 +187,33 @@ export const createOrganizeosPublisher = (
                 organization_id: organizationId,
               },
             }),
-          }
-        );
+          });
+        } catch (error) {
+          // The request never completed. Without this the build would sit
+          // PENDING until the dialog's timeout, reporting nothing.
+          console.error(
+            `[organizeos-publisher] dispatch request failed for ${deps.repo}/${WORKFLOW_FILE}`,
+            error
+          );
+          await markFailed(deps.client, input.buildId);
+          return { success: false as const, error: RETRY_MESSAGE };
+        }
 
         if (response.status !== 204) {
+          // Name the repo and workflow: a mis-set ORGANIZEOS_PUBLISH_REPO is
+          // otherwise indistinguishable from a bad token, and both look like
+          // the same generic failure to the admin.
           console.error(
-            "[organizeos-publisher] dispatch failed",
+            `[organizeos-publisher] dispatch rejected for ${deps.repo}/${WORKFLOW_FILE}`,
             response.status,
             await response.text().catch(() => "")
           );
+          await markFailed(deps.client, input.buildId);
           return {
             success: false as const,
-            error: "Publishing could not be started. Please try again.",
+            error: isSetupFailure(response.status)
+              ? SETUP_MESSAGE
+              : RETRY_MESSAGE,
           };
         }
 

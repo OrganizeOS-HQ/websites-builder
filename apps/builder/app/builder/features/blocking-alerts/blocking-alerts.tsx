@@ -1,12 +1,30 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { Alert } from "./alert";
 import { useWindowResizeDebounced } from "~/shared/dom-hooks";
-import { isFeatureEnabled } from "@webstudio-is/feature-flags";
-import { Link } from "@webstudio-is/design-system";
 import { $isPreviewMode } from "~/shared/nano-states";
 import { useStore } from "@nanostores/react";
 import { $loadingState } from "~/builder/shared/nano-states";
 import { productName } from "~/shared/branding";
+
+/**
+ * OrganizeOS fork: upstream put a second, dismissable interstitial here — a
+ * full-screen "the builder supports Chromium-based browsers such as Chrome,
+ * Edge, Brave, Arc... we plan to support Firefox and Safari in the near future"
+ * notice, gated on `"chrome" in window`. It is removed:
+ *
+ *  - it carries an upstream product roadmap OrganizeOS has not committed to;
+ *  - it links four browser vendors' marketing pages out of an embedded surface;
+ *  - an org admin reaches this builder by clicking through from their own
+ *    workspace, so a full-screen vendor notice reads as a broken product.
+ *
+ * Removing it also retires the dismiss mechanism, which had a real defect: the
+ * dismissed flag was a module-level atom shared with the alert below, so
+ * dismissing the browser notice permanently suppressed the window-size alert
+ * for the rest of the session.
+ *
+ * The window-size alert stays. It is actionable — it tells the user something
+ * they can fix — and it is the only blocking alert left.
+ */
 
 const useTooSmallMessage = () => {
   const [message, setMessage] = useState<string>();
@@ -25,94 +43,21 @@ const useTooSmallMessage = () => {
   return message;
 };
 
-const useUnsupportedBrowser = () => {
-  const [message, setMessage] = useState<ReactNode>();
-  useEffect(() => {
-    if ("chrome" in window || isFeatureEnabled("unsupportedBrowsers")) {
-      return;
-    }
-
-    setMessage(
-      <>
-        The {productName} builder UI currently supports any{" "}
-        <Link
-          href="https://en.wikipedia.org/wiki/Chromium_(web_browser)"
-          target="_blank"
-          color="inherit"
-          variant="inherit"
-        >
-          Chromium-based
-        </Link>{" "}
-        browsers such as{" "}
-        <Link
-          href="https://www.google.com/chrome"
-          target="_blank"
-          color="inherit"
-          variant="inherit"
-        >
-          Google Chrome
-        </Link>
-        ,{" "}
-        <Link
-          href="https://www.microsoft.com/en-us/edge"
-          target="_blank"
-          color="inherit"
-          variant="inherit"
-        >
-          Microsoft Edge
-        </Link>
-        ,{" "}
-        <Link
-          href="https://brave.com/"
-          target="_blank"
-          color="inherit"
-          variant="inherit"
-        >
-          Brave
-        </Link>
-        ,{" "}
-        <Link
-          href="https://arc.net/"
-          target="_blank"
-          color="inherit"
-          variant="inherit"
-        >
-          Arc
-        </Link>{" "}
-        and many more. We plan to support Firefox and Safari in the near future.
-        <br />
-        <br />
-        The website you&apos;re building should function correctly across all
-        browsers!
-      </>
-    );
-  }, []);
-  return message;
-};
-
 export const BlockingAlerts = () => {
   const isPreviewMode = useStore($isPreviewMode);
   const loadingState = useStore($loadingState);
 
-  const unsupportedBrowsersMessage = useUnsupportedBrowser();
-  // Takes the latest message, order matters
-  const message = [useTooSmallMessage(), unsupportedBrowsersMessage]
-    .filter(Boolean)
-    .pop();
+  const message = useTooSmallMessage();
 
   if (
     message === undefined ||
-    // We want user to be able to test in unsupported browsers in preview mode.
+    // Preview mode is for looking at the site, not building it, so a
+    // resize-your-window block would be wrong there.
     isPreviewMode ||
     loadingState.state !== "ready"
   ) {
     return;
   }
 
-  return (
-    <Alert
-      message={message}
-      isDismissable={unsupportedBrowsersMessage !== undefined}
-    />
-  );
+  return <Alert message={message} />;
 };

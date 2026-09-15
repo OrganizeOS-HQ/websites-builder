@@ -9,7 +9,6 @@ import {
 import { Flex } from "@webstudio-is/design-system";
 import { theme } from "@webstudio-is/design-system";
 import {
-  ExtensionIcon,
   ImageIcon,
   NavigatorIcon,
   PageIcon,
@@ -41,7 +40,6 @@ import { ComponentsPanel } from "~/builder/features/components";
 import { PagesPanel } from "~/builder/features/pages";
 import { NavigatorPanel } from "~/builder/features/navigator";
 import { AssetsPanel } from "~/builder/features/assets";
-import { MarketplacePanel } from "~/builder/features/marketplace";
 import type { SidebarPanelName } from "./types";
 
 const none = { Panel: () => null };
@@ -95,6 +93,9 @@ const isPanelDisabled = (
   return isTextPage === true && panel.visibility?.text === false;
 };
 
+// OrganizeOS fork: the upstream Marketplace panel is not registered. There is no
+// OrganizeOS marketplace, and the panel lists rows from ApprovedMarketplaceProduct,
+// so it rendered as an empty tab named after another product.
 const panels: PanelConfig[] = [
   {
     name: "components",
@@ -135,15 +136,6 @@ const panels: PanelConfig[] = [
     label: "Assets",
     Icon: ImageIcon,
     Panel: AssetsPanel,
-  },
-  {
-    name: "marketplace",
-    label: "Marketplace",
-    Icon: ExtensionIcon,
-    Panel: MarketplacePanel,
-    visibility: {
-      content: false,
-    },
   },
 ];
 

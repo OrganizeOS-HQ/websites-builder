@@ -35,17 +35,20 @@ import {
   subscribeModifierKeys,
   $stagingUsername,
   $stagingPassword,
+  $organizeosSite,
   $user,
 } from "~/shared/nano-states";
 import { $project } from "~/shared/sync/data-stores";
 import { $settings, type Settings } from "./shared/client-settings";
 import { builderUrl, getCanvasUrl } from "~/shared/router-utils";
 import { BlockingAlerts } from "./features/blocking-alerts";
+import { productName } from "~/shared/branding";
 import { useSyncPageUrl } from "~/shared/pages";
 import { useMount, useUnmount } from "~/shared/hook-utils/use-mount";
 import { subscribeCommands } from "~/builder/shared/commands";
 import { ProjectSettings } from "~/shared/project-settings";
 import type { PlanFeatures, Purchase } from "@webstudio-is/plans";
+import type { OrganizeosSite } from "~/shared/organizeos-site";
 import {
   $activeSidebarPanel,
   $dataLoadingState,
@@ -88,7 +91,7 @@ import { useDisableContextMenu } from "./shared/use-disable-context-menu";
 const useSetWindowTitle = () => {
   const project = useStore($project);
   useEffect(() => {
-    document.title = `${project?.title} | Webstudio`;
+    document.title = `${project?.title} | ${productName}`;
   }, [project?.title]);
 };
 
@@ -261,6 +264,7 @@ export type BuilderProps = {
   purchases: Array<Purchase>;
   stagingUsername: string;
   stagingPassword: string;
+  organizeosSite?: OrganizeosSite;
 };
 
 export const Builder = (props: BuilderProps) => {
@@ -271,6 +275,7 @@ export const Builder = (props: BuilderProps) => {
     authTokenPermissions,
     stagingUsername,
     stagingPassword,
+    organizeosSite,
   } = props;
 
   useMount(initBuilderApi);
@@ -284,6 +289,7 @@ export const Builder = (props: BuilderProps) => {
     $authTokenPermissions.set(authTokenPermissions);
     $stagingUsername.set(stagingUsername);
     $stagingPassword.set(stagingPassword);
+    $organizeosSite.set(organizeosSite);
 
     const controller = new AbortController();
 

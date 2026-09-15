@@ -3,8 +3,10 @@ import { resolveOrCreateUserByEmail } from "~/shared/db/user.server";
 import {
   deriveProjectId,
   deriveSyntheticUserId,
+  grantOrgWorkspaceMembership,
 } from "~/shared/db/provision.server";
 import { syncOrgOwnerPlan } from "~/shared/db/organizeos-plan.server";
+import { syncOrgProjectDomain } from "~/shared/db/organizeos-site.server";
 import { builderUrl } from "~/shared/router-utils";
 import { verifyOrganizeosSsoToken } from "./organizeos-token.server";
 
@@ -73,6 +75,17 @@ export const organizeosSsoLogin = async (
   // 3. Resolve (or lazily create) the Webstudio dashboard User for this admin.
   const user = await resolveOrCreateUserByEmail(context, claims.email);
 
+  // 3b. Seat the admin in the org's workspace. OrganizeOS signs a token only
+  //     for a currently active owner/admin of that org, so the verified token
+  //     is the authority; without this an admin added after provisioning had
+  //     no membership until the next re-sync. Fail-open: an admin who already
+  //     holds a seat must not lose their login to a store hiccup, and project
+  //     access is still decided against the membership rows themselves.
+  await seatOrgAdmin(context, {
+    organizationId: claims.organizationId,
+    userId: user.id,
+  });
+
   // 4. Refresh the org's plan from the signed entitlements. Provisioning is the
   //    only other time they are set, so without this a tier change would never
   //    reach the builder. Entry is the right moment: it is when the entitlement
@@ -80,7 +93,48 @@ export const organizeosSsoLogin = async (
   //    current state here.
   await refreshOrgEntitlements(context, claims);
 
+  // 5. Same for the org's subdomain: the project's domain follows it, so the
+  //    builder always shows the site's current public address.
+  await refreshOrgSite(context, claims);
+
   return { userId: user.id, createdAt: Date.now() };
+};
+
+/**
+ * Mirror the token's subdomain into the org project's domain. Fail-open like
+ * the entitlement refresh: a cosmetic sync must never cost an admin their
+ * login. A token without the claim leaves the domain alone.
+ */
+const refreshOrgSite = async (
+  context: AppContext,
+  claims: { organizationId: string; subdomain?: string }
+): Promise<void> => {
+  if (claims.subdomain === undefined) {
+    return;
+  }
+  try {
+    await syncOrgProjectDomain(context, {
+      projectId: deriveProjectId(claims.organizationId),
+      organizationId: claims.organizationId,
+      subdomain: claims.subdomain,
+    });
+  } catch (error) {
+    console.error("[organizeosSsoLogin] site domain refresh failed", error);
+  }
+};
+
+const seatOrgAdmin = async (
+  context: AppContext,
+  seat: { organizationId: string; userId: string }
+): Promise<void> => {
+  try {
+    await grantOrgWorkspaceMembership(context, seat);
+  } catch (error) {
+    console.error(
+      "[organizeosSsoLogin] workspace membership grant failed",
+      error
+    );
+  }
 };
 
 /**
@@ -146,4 +200,32 @@ export const resolveSsoLandingUrl = (
   } catch {
     return null;
   }
+};
+
+/**
+ * Where a successful SSO entry should land.
+ *
+ * The deep link into the org's project is what OrganizeOS means by "open the
+ * website builder", so it beats a stored returnTo that points at the fork
+ * dashboard. That cookie is easy to acquire by accident — any earlier visit to
+ * /login sets it — and it used to outrank the deep link, dropping the admin on
+ * a dashboard OrganizeOS does not use. A returnTo pointing anywhere else is
+ * still honoured: that is the mid-flow re-authentication case it exists for.
+ */
+export const resolveSsoReturnTo = ({
+  storedReturnTo,
+  deepLink,
+  dashboardPath,
+}: {
+  storedReturnTo: string | null;
+  deepLink: string | null;
+  dashboardPath: string;
+}): string => {
+  const honoursStored =
+    storedReturnTo !== null &&
+    storedReturnTo.startsWith(dashboardPath) === false;
+  if (honoursStored) {
+    return storedReturnTo;
+  }
+  return deepLink ?? dashboardPath;
 };

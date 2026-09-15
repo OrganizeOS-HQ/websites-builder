@@ -40,7 +40,7 @@ import {
   wouldCreateLoop,
 } from "~/shared/redirects/redirect-loop-detection";
 import type { Errors, OnChange, Values } from "./shared";
-import { planUpgradeHint } from "~/shared/branding";
+import { planBadgeLabel, planUpgradeHint } from "~/shared/branding";
 
 // 2xx, 3xx, 4xx, 5xx
 const statusRegex = /^[2345]\d\d$/;
@@ -162,7 +162,7 @@ const PathField = ({
     <Grid gap={1}>
       <Flex align="center" gap={1}>
         <Label htmlFor={id}>Path</Label>
-        {allowDynamicData === false && <ProBadge>PRO</ProBadge>}
+        {allowDynamicData === false && <ProBadge>{planBadgeLabel}</ProBadge>}
         <Tooltip
           content={
             <>
@@ -176,9 +176,7 @@ const PathField = ({
                   <br />
                   <Text>
                     To make the path dynamic and use it with CMS, you can use
-                    parameters and other features. You can still publish to
-                    staging; publishing to custom domains needs a plan that
-                    includes it. {planUpgradeHint}
+                    parameters and other features. {planUpgradeHint}
                   </Text>
                 </>
               )}
@@ -308,7 +306,7 @@ const RedirectField = ({
     <Grid gap={1}>
       <Flex align="center" gap={1}>
         <Label htmlFor={id}>Redirect </Label>
-        {allowDynamicData === false && <ProBadge>PRO</ProBadge>}
+        {allowDynamicData === false && <ProBadge>{planBadgeLabel}</ProBadge>}
         <Tooltip
           content={
             <>
@@ -320,9 +318,7 @@ const RedirectField = ({
                 <>
                   <br />
                   <Text>
-                    Redirects are not included in your plan. You can still
-                    publish to staging; publishing to custom domains needs a
-                    plan that includes them. {planUpgradeHint}
+                    Redirects are not included in your plan. {planUpgradeHint}
                   </Text>
                 </>
               )}

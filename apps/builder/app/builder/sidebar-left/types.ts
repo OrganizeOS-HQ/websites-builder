@@ -3,7 +3,6 @@ export const sidebarPanelNames = [
   "components",
   "navigator",
   "pages",
-  "marketplace",
 ] as const;
 
 export type SidebarPanelName = (typeof sidebarPanelNames)[number] | "none";

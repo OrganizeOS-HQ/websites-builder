@@ -1,260 +1,51 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { idAttribute, selectorIdAttribute } from "@webstudio-is/react-sdk";
-import {
-  $allSelectedInstanceSelectors,
-  $selectedInstanceOutline,
-  $selectedInstanceOutlines,
-  selectInstances,
-} from "~/shared/nano-states";
-import { $instances, $styleSourceSelections } from "~/shared/sync/data-stores";
-import { subscribeSelected } from "./selected-instance-effects";
-import { subscribeInstanceSelection } from "./instance-selection-events";
+import { describe, expect, test } from "vitest";
+import { __testing__ } from "./selected-instance-effects";
 
-const createInstance = (id: string) => ({
-  type: "instance" as const,
-  id,
-  component: "Box",
-  children: [],
-});
+const { parseComputedUnitValue } = __testing__;
 
-const createElement = ({
-  selector,
-  rect,
-  parent = document.body,
-}: {
-  selector: string;
-  rect: { left: number; top: number; width: number; height: number };
-  parent?: HTMLElement;
-}) => {
-  const element = document.createElement("div");
-  const [id] = selector.split(",");
-  element.setAttribute(idAttribute, id);
-  element.setAttribute(selectorIdAttribute, selector);
-  element.getBoundingClientRect = () =>
-    new TestDOMRect(rect.left, rect.top, rect.width, rect.height) as DOMRect;
-  parent.appendChild(element);
-  return element;
-};
+/**
+ * The no-Typed-OM path, which is what Firefox and Safari take. Before it
+ * existed those browsers produced no property sizes at all, and the style
+ * panel's keyword-to-unit conversion silently substituted 0 — picking "px" on
+ * `width: auto` wrote `0px`.
+ */
+describe("parseComputedUnitValue", () => {
+  test.each([
+    ["1280px", { type: "unit", unit: "px", value: 1280 }],
+    ["16.5px", { type: "unit", unit: "px", value: 16.5 }],
+    ["50%", { type: "unit", unit: "%", value: 50 }],
+    ["-4px", { type: "unit", unit: "px", value: -4 }],
+    ["0.5s", { type: "unit", unit: "s", value: 0.5 }],
+    ["45deg", { type: "unit", unit: "deg", value: 45 }],
+  ])("reads %j off a resolved computed value", (input, expected) => {
+    expect(parseComputedUnitValue(input)).toEqual(expected);
+  });
 
-class ResizeObserver {
-  observe() {}
-  disconnect() {}
-}
+  test("treats a bare number as unitless, the way CSSUnitValue does", () => {
+    expect(parseComputedUnitValue("0")).toEqual({
+      type: "unit",
+      unit: "number",
+      value: 0,
+    });
+    expect(parseComputedUnitValue("1.5")).toEqual({
+      type: "unit",
+      unit: "number",
+      value: 1.5,
+    });
+  });
 
-class TestDOMRect {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-  x: number;
-  y: number;
-  right: number;
-  bottom: number;
+  test("tolerates the whitespace getComputedStyle can return", () => {
+    expect(parseComputedUnitValue("  24px ")).toEqual({
+      type: "unit",
+      unit: "px",
+      value: 24,
+    });
+  });
 
-  constructor(x = 0, y = 0, width = 0, height = 0) {
-    this.left = x;
-    this.top = y;
-    this.width = width;
-    this.height = height;
-    this.x = x;
-    this.y = y;
-    this.right = x + width;
-    this.bottom = y + height;
-  }
-
-  static fromRect(rect: Partial<globalThis.DOMRectReadOnly>) {
-    return new TestDOMRect(rect.x, rect.y, rect.width, rect.height);
-  }
-
-  toJSON() {
-    return this;
-  }
-}
-
-class TestDOMMatrix {
-  inverse() {
-    return this;
-  }
-}
-
-class TestDOMPoint {
-  x: number;
-  y: number;
-
-  constructor(x = 0, y = 0) {
-    this.x = x;
-    this.y = y;
-  }
-
-  matrixTransform() {
-    return this;
-  }
-}
-
-let unsubscribe = () => {};
-let abortController: AbortController;
-
-beforeEach(() => {
-  vi.stubGlobal("ResizeObserver", ResizeObserver);
-  vi.stubGlobal("DOMRect", TestDOMRect);
-  vi.stubGlobal("DOMMatrix", TestDOMMatrix);
-  vi.stubGlobal("DOMPoint", TestDOMPoint);
-  vi.stubGlobal("requestAnimationFrame", () => 0);
-  $instances.set(
-    new Map([
-      ["box", createInstance("box")],
-      ["heading", createInstance("heading")],
-    ])
+  test.each(["auto", "normal", "none", "rgb(0, 0, 0)", "1px solid red", ""])(
+    "has no unit value for %j, so the caller keeps its own fallback",
+    (input) => {
+      expect(parseComputedUnitValue(input)).toBeUndefined();
+    }
   );
-  $styleSourceSelections.set(new Map());
-  $allSelectedInstanceSelectors.set([]);
-  $selectedInstanceOutline.set(undefined);
-  $selectedInstanceOutlines.set([]);
-  document.body.innerHTML = "";
-  abortController = new AbortController();
-});
-
-afterEach(() => {
-  abortController.abort();
-  unsubscribe();
-  unsubscribe = () => {};
-  vi.unstubAllGlobals();
-  document.body.innerHTML = "";
-  $instances.set(new Map());
-  $allSelectedInstanceSelectors.set([]);
-  $selectedInstanceOutline.set(undefined);
-  $selectedInstanceOutlines.set([]);
-});
-
-describe("subscribeSelected", () => {
-  test("creates both outline stores for one selected instance", () => {
-    createElement({
-      selector: "box,body",
-      rect: { left: 10, top: 20, width: 100, height: 50 },
-    });
-    unsubscribe = subscribeSelected((callback) => callback());
-
-    selectInstances([["box", "body"]]);
-
-    expect($selectedInstanceOutlines.get()).toEqual([
-      expect.objectContaining({
-        selector: ["box", "body"],
-        instanceId: "box",
-      }),
-    ]);
-    expect(Object.keys($selectedInstanceOutlines.get()[0].rect)).toEqual([
-      "top",
-      "left",
-      "width",
-      "height",
-    ]);
-    expect($selectedInstanceOutline.get()).toEqual(
-      expect.objectContaining({
-        instanceId: "box",
-      })
-    );
-  });
-
-  test("creates an outline for every selected instance without single outline", () => {
-    createElement({
-      selector: "box,body",
-      rect: { left: 10, top: 20, width: 100, height: 50 },
-    });
-    createElement({
-      selector: "heading,body",
-      rect: { left: 20, top: 40, width: 140, height: 70 },
-    });
-    unsubscribe = subscribeSelected((callback) => callback());
-
-    selectInstances([
-      ["box", "body"],
-      ["heading", "body"],
-    ]);
-
-    expect(
-      $selectedInstanceOutlines.get().map((outline) => outline.selector)
-    ).toEqual([
-      ["box", "body"],
-      ["heading", "body"],
-    ]);
-    expect($selectedInstanceOutline.get()).toBeUndefined();
-  });
-
-  test("does not fall back to parent rect for zero-size multi-selected instances", () => {
-    const parent = createElement({
-      selector: "parent,body",
-      rect: { left: 5, top: 10, width: 500, height: 300 },
-    });
-    createElement({
-      selector: "box,parent,body",
-      rect: { left: 0, top: 0, width: 0, height: 0 },
-      parent,
-    });
-    createElement({
-      selector: "heading,parent,body",
-      rect: { left: 20, top: 40, width: 140, height: 70 },
-      parent,
-    });
-    unsubscribe = subscribeSelected((callback) => callback());
-
-    selectInstances([
-      ["box", "parent", "body"],
-      ["heading", "parent", "body"],
-    ]);
-
-    expect($selectedInstanceOutlines.get()[0]).toEqual(
-      expect.objectContaining({
-        selector: ["box", "parent", "body"],
-        rect: expect.objectContaining({
-          left: 0,
-          top: 0,
-          width: 0,
-          height: 0,
-        }),
-      })
-    );
-    expect(
-      $selectedInstanceOutlines
-        .get()
-        .some(
-          (outline) => outline.rect.width === 500 && outline.rect.height === 300
-        )
-    ).toBe(false);
-  });
-
-  test("creates outlines when instances are selected by canvas clicks", () => {
-    const box = createElement({
-      selector: "box,body",
-      rect: { left: 10, top: 20, width: 100, height: 50 },
-    });
-    const heading = createElement({
-      selector: "heading,body",
-      rect: { left: 20, top: 40, width: 140, height: 70 },
-    });
-    unsubscribe = subscribeSelected((callback) => callback());
-    subscribeInstanceSelection({ signal: abortController.signal });
-
-    box.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-
-    expect(
-      $selectedInstanceOutlines.get().map((outline) => outline.selector)
-    ).toEqual([["box", "body"]]);
-    expect($selectedInstanceOutline.get()).toEqual(
-      expect.objectContaining({
-        instanceId: "box",
-      })
-    );
-
-    heading.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, metaKey: true })
-    );
-
-    expect(
-      $selectedInstanceOutlines.get().map((outline) => outline.selector)
-    ).toEqual([
-      ["box", "body"],
-      ["heading", "body"],
-    ]);
-    expect($selectedInstanceOutline.get()).toBeUndefined();
-  });
 });

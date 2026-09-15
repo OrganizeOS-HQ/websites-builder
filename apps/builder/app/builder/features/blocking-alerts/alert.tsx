@@ -1,8 +1,5 @@
-import { atom } from "nanostores";
-import { useStore } from "@nanostores/react";
 import type { ReactNode } from "react";
 import {
-  Button,
   css,
   Flex,
   Popover,
@@ -26,19 +23,13 @@ const contentStyle = css({
   color: theme.colors.foregroundDestructive,
 });
 
-const $isAlertDismissed = atom(false);
-
-export const Alert = ({
-  message,
-  isDismissable,
-}: {
-  message: string | ReactNode;
-  isDismissable?: boolean;
-}) => {
-  const isAlertDismissed = useStore($isAlertDismissed);
-  if (isAlertDismissed) {
-    return;
-  }
+/**
+ * A blocking alert. OrganizeOS fork: the dismiss button is gone along with the
+ * upstream unsupported-browser notice that was its only caller. Every alert
+ * that survives states something the user can act on, so dismissing one would
+ * only hide a condition that is still true.
+ */
+export const Alert = ({ message }: { message: string | ReactNode }) => {
   return (
     <Popover open>
       <PopoverContent css={{ zIndex: theme.zIndices.max }}>
@@ -53,14 +44,6 @@ export const Alert = ({
             <Text color="contrast" align="center">
               {message}
             </Text>
-            {isDismissable && (
-              <Button
-                color="destructive"
-                onClick={() => $isAlertDismissed.set(true)}
-              >
-                Dismiss
-              </Button>
-            )}
           </Flex>
         </Flex>
       </PopoverContent>

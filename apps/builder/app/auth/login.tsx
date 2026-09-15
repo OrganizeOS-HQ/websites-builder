@@ -11,6 +11,7 @@ import { GithubIcon, GoogleIcon } from "@webstudio-is/icons";
 import { OrganizeosLogo } from "~/shared/organizeos-logo";
 import { Form } from "@remix-run/react";
 import { authPath } from "~/shared/router-utils";
+import { platformUrl as defaultPlatformUrl } from "~/shared/branding";
 import { SecretLogin } from "./secret-login";
 
 const globalStyles = globalCss({
@@ -26,6 +27,8 @@ export type LoginProps = {
   isGoogleEnabled?: boolean;
   isSecretLoginEnabled?: boolean;
   devPlanNames?: string[];
+  /** The OrganizeOS app to send admins back to (ORGANIZEOS_APP_URL). */
+  platformUrl?: string;
 };
 
 export const Login = ({
@@ -34,6 +37,7 @@ export const Login = ({
   isGoogleEnabled,
   isSecretLoginEnabled,
   devPlanNames,
+  platformUrl = defaultPlatformUrl,
 }: LoginProps) => {
   globalStyles();
   return (
@@ -79,7 +83,7 @@ export const Login = ({
                   color="primary"
                   css={{ height: theme.spacing[15] }}
                   onClick={() => {
-                    window.location.href = "https://app.organizeos.org";
+                    window.location.href = platformUrl;
                   }}
                 >
                   Go to OrganizeOS

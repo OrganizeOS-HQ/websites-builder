@@ -33,7 +33,7 @@ import {
 } from "react";
 import { useDebounce } from "use-debounce";
 import { CloneButton } from "~/builder/features/clone";
-import { $selectedPage } from "~/shared/nano-states";
+import { $organizeosSite, $selectedPage } from "~/shared/nano-states";
 import { BuilderModeDropDown } from "~/builder/features/builder-mode";
 import { SafeModeButton } from "~/builder/features/safe-mode";
 import { NotificationPopover } from "~/shared/notifications/notification-popover";
@@ -155,6 +155,9 @@ type TopbarProps = {
 export const Topbar = ({ project, css, loading, isUiHidden }: TopbarProps) => {
   const pages = useStore($pages);
   const notifications = useStore($notifications);
+  // An OrganizeOS site is shared through org membership and lives in one
+  // project; share links and clones have nowhere to go.
+  const isOrganizeosSite = useStore($organizeosSite) !== undefined;
   const [isRevealed, setIsRevealed] = useState(false);
   const [isPointerInside, setIsPointerInside] = useState(false);
   const [wantsHidden, setWantsHidden] = useState(false);
@@ -241,9 +244,11 @@ export const Topbar = ({ project, css, loading, isUiHidden }: TopbarProps) => {
             <SyncStatusDot />
             <SyncStatus />
             <BuilderModeDropDown />
-            <ShareButton projectId={project.id} />
+            {isOrganizeosSite === false && (
+              <ShareButton projectId={project.id} />
+            )}
             <PublishButton projectId={project.id} />
-            <CloneButton />
+            {isOrganizeosSite === false && <CloneButton />}
           </>
         }
         loading={loading}

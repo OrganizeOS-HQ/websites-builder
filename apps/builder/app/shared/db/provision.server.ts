@@ -9,6 +9,13 @@ import {
   syncOrgOwnerPlan,
   type OrgEntitlements,
 } from "./organizeos-plan.server";
+import {
+  deriveProjectDomain,
+  resolveOrgProjectDomain,
+  syncOrgProjectDomain,
+} from "./organizeos-site.server";
+
+export { deriveProjectDomain };
 
 /**
  * OrganizeOS multi-tenant provisioning (Websites 2.0, Phase 4b).
@@ -60,14 +67,6 @@ export const deriveProjectId = (organizationId: string): string =>
 export const deriveSyntheticEmail = (organizationId: string): string =>
   `org+${organizationId}@svc.organizeos.internal`;
 
-/**
- * Webstudio Project.domain must be unique and is only an internal identifier
- * here (public hosting is via the OrganizeOS subdomain + reverse proxy, not
- * Webstudio's domain). Derive a stable, unique slug from the org id.
- */
-export const deriveProjectDomain = (organizationId: string): string =>
-  `org-${organizationId.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-
 export type ProvisionResult = {
   serviceUserId: string;
   workspaceId: string;
@@ -91,6 +90,10 @@ export type ProvisionResult = {
  * `entitlements` are the org's paid capabilities as resolved by OrganizeOS.
  * They become the synthetic owner's plan, which is what the builder's own
  * feature gates read. Omitted means no paid capability (deny by default).
+ *
+ * `subdomain` is the org's platform subdomain. It becomes Project.domain (see
+ * organizeos-site.server.ts), so the builder shows the site's real address.
+ * Omitted (an older caller) keeps the derived org-<id> placeholder.
  */
 export const provisionOrgWorkspace = async (
   context: AppContext,
@@ -100,12 +103,14 @@ export const provisionOrgWorkspace = async (
     adminEmails,
     siteData,
     entitlements = defaultOrgEntitlements,
+    subdomain,
   }: {
     organizationId: string;
     orgName: string;
     adminEmails: string[];
     siteData?: { readToken: string; apiBaseUrl: string };
     entitlements?: OrgEntitlements;
+    subdomain?: string;
   }
 ): Promise<ProvisionResult> => {
   const client = context.postgrest.client;
@@ -133,15 +138,19 @@ export const provisionOrgWorkspace = async (
   await syncOrgOwnerPlan(context, { serviceUserId, entitlements });
 
   // 2. Workspace owned by the synthetic account. isDefault=true is safe: the
-  //    synthetic account owns exactly one workspace.
+  //    synthetic account owns exactly one workspace. A merge (not an ignore)
+  //    upsert: a re-provision after an offboard must clear the soft-delete,
+  //    or the workspace stays invisible to the authorization view and every
+  //    admin stays locked out; it also follows an org rename.
   const workspaceResult = await client.from("Workspace").upsert(
     {
       id: workspaceId,
       name: orgName,
       isDefault: true,
       userId: serviceUserId,
+      isDeleted: false,
     },
-    { onConflict: "id", ignoreDuplicates: true }
+    { onConflict: "id" }
   );
   if (workspaceResult.error) {
     throw workspaceResult.error;
@@ -150,7 +159,7 @@ export const provisionOrgWorkspace = async (
   // 3. Project owned by the synthetic account, in the org's workspace.
   const existingProject = await client
     .from("Project")
-    .select("id")
+    .select("id, isDeleted, userId, workspaceId")
     .eq("id", projectId)
     .maybeSingle();
   if (existingProject.error) {
@@ -163,7 +172,7 @@ export const provisionOrgWorkspace = async (
     const insertProject = await client.from("Project").insert({
       id: projectId,
       title: orgName,
-      domain: deriveProjectDomain(organizationId),
+      domain: resolveOrgProjectDomain(organizationId, subdomain),
     });
     if (insertProject.error) {
       throw insertProject.error;
@@ -178,6 +187,39 @@ export const provisionOrgWorkspace = async (
     if (attachOwner.error) {
       throw attachOwner.error;
     }
+  } else {
+    // Re-sync. The org's project identity is derived, so re-provisioning
+    // re-asserts all of it: the soft-delete an offboard left behind, and the
+    // owner and workspace, which the fork dashboard's Transfer action can move
+    // out from under OrganizeOS. A transferred project would otherwise be
+    // unrecoverable — the publisher resolves the org from the project owner's
+    // email, so it stops being publishable, and nothing else puts it back.
+    const drifted: Record<string, unknown> = {};
+    if (existingProject.data.isDeleted === true) {
+      drifted.isDeleted = false;
+    }
+    if (existingProject.data.userId !== serviceUserId) {
+      drifted.userId = serviceUserId;
+    }
+    if (existingProject.data.workspaceId !== workspaceId) {
+      drifted.workspaceId = workspaceId;
+    }
+    if (Object.keys(drifted).length > 0) {
+      const restoreProject = await client
+        .from("Project")
+        .update(drifted)
+        .eq("id", projectId);
+      if (restoreProject.error) {
+        throw restoreProject.error;
+      }
+    }
+    // An org whose subdomain changed (or that was provisioned before the caller
+    // sent one) converges on its current address.
+    await syncOrgProjectDomain(context, {
+      projectId,
+      organizationId,
+      subdomain,
+    });
   }
 
   // 3b. Seed the OrganizeOS /v1 data Resource presets + a starter signup form
@@ -195,9 +237,13 @@ export const provisionOrgWorkspace = async (
     });
   }
 
-  // 4. Human admins as non-owner members (reactivate on re-sync via removedAt).
-  //    Resolve each email to a Webstudio User id first, creating a placeholder
-  //    account for admins who have not logged in yet.
+  // 4. Human admins as non-owner members (reactivate on re-sync via removedAt),
+  //    and retire members who are no longer among the org's admins, so a
+  //    demoted admin loses builder access at the next re-sync rather than at
+  //    offboarding. Resolve each email to a Webstudio User id first, creating a
+  //    placeholder account for admins who have not logged in yet. An empty
+  //    list is left alone: OrganizeOS resolves admins best-effort, and a lookup
+  //    hiccup must never evict everyone.
   if (adminEmails.length > 0) {
     const adminUserIds = await Promise.all(
       adminEmails.map(async (email) => {
@@ -206,8 +252,28 @@ export const provisionOrgWorkspace = async (
       })
     );
 
-    const memberResult = await client.from("WorkspaceMember").upsert(
-      adminUserIds.map((userId) => ({
+    await upsertOrgWorkspaceMembers(context, {
+      workspaceId,
+      userIds: adminUserIds,
+    });
+    await retireOtherOrgWorkspaceMembers(context, {
+      workspaceId,
+      keepUserIds: adminUserIds,
+    });
+  }
+
+  return { serviceUserId, workspaceId, projectId };
+};
+
+/** Make `userIds` active administrator members of the org workspace. */
+const upsertOrgWorkspaceMembers = async (
+  context: AppContext,
+  { workspaceId, userIds }: { workspaceId: string; userIds: string[] }
+): Promise<void> => {
+  const memberResult = await context.postgrest.client
+    .from("WorkspaceMember")
+    .upsert(
+      userIds.map((userId) => ({
         workspaceId,
         userId,
         relation: "administrators" as const,
@@ -215,12 +281,58 @@ export const provisionOrgWorkspace = async (
       })),
       { onConflict: "workspaceId,userId" }
     );
-    if (memberResult.error) {
-      throw memberResult.error;
-    }
+  if (memberResult.error) {
+    throw memberResult.error;
   }
+};
 
-  return { serviceUserId, workspaceId, projectId };
+/** Retire every active member of the org workspace not in `keepUserIds`. */
+const retireOtherOrgWorkspaceMembers = async (
+  context: AppContext,
+  { workspaceId, keepUserIds }: { workspaceId: string; keepUserIds: string[] }
+): Promise<void> => {
+  const client = context.postgrest.client;
+  const activeMembers = await client
+    .from("WorkspaceMember")
+    .select("userId")
+    .eq("workspaceId", workspaceId)
+    .is("removedAt", null);
+  if (activeMembers.error) {
+    throw activeMembers.error;
+  }
+  const keep = new Set(keepUserIds);
+  const staleUserIds = activeMembers.data
+    .map((member) => member.userId)
+    .filter((userId) => keep.has(userId) === false);
+  if (staleUserIds.length === 0) {
+    return;
+  }
+  const retired = await client
+    .from("WorkspaceMember")
+    .update({ removedAt: new Date().toISOString() })
+    .eq("workspaceId", workspaceId)
+    .in("userId", staleUserIds)
+    .is("removedAt", null);
+  if (retired.error) {
+    throw retired.error;
+  }
+};
+
+/**
+ * Grant one verified org admin membership of the org's workspace. Used by the
+ * SSO login: OrganizeOS only signs a token for a currently active owner/admin,
+ * so the token itself is the authority, and an admin added after the org was
+ * provisioned gets a seat on their first entry without a re-sync having to
+ * run first. Idempotent (re-activates a retired row).
+ */
+export const grantOrgWorkspaceMembership = async (
+  context: AppContext,
+  { organizationId, userId }: { organizationId: string; userId: string }
+): Promise<void> => {
+  await upsertOrgWorkspaceMembers(context, {
+    workspaceId: deriveWorkspaceId(organizationId),
+    userIds: [userId],
+  });
 };
 
 /**

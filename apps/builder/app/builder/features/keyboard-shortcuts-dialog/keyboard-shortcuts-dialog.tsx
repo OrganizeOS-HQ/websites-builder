@@ -14,6 +14,7 @@ import {
 import { atom } from "nanostores";
 import { Fragment } from "react";
 import { $commandMetas } from "~/shared/commands-emitter";
+import { $organizeosSite } from "~/shared/nano-states";
 
 const $isKeyboardShortcutsOpen = atom(false);
 
@@ -114,13 +115,18 @@ const getShortcutCategoryColumns = (categories: string[]) => {
 export const KeyboardShortcutsDialog = () => {
   const isOpen = useStore($isKeyboardShortcutsOpen);
   const commandMetas = useStore($commandMetas);
+  const organizeosSite = useStore($organizeosSite);
 
   // Filter commands that have hotkeys and are not hidden
   const commandsWithHotkeys = Array.from(commandMetas.values()).filter(
     (command) =>
       command.defaultHotkeys &&
       command.defaultHotkeys.length > 0 &&
-      !command.hidden
+      !command.hidden &&
+      // An OrganizeOS site is published only by the executor, so the Export
+      // view is unreachable for it; do not document a shortcut that silently
+      // opens Publish instead.
+      (organizeosSite === undefined || command.name !== "openExportDialog")
   );
 
   // Combine with additional shortcuts

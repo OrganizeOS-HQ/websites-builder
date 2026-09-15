@@ -7,8 +7,14 @@ name: Publish site
 # OrganizeOS, which flips the org's ledger pointer. Each publish is its own
 # deployment URL, so the flip is atomic and rollback is repointing.
 #
+# The run ends by telling the builder how it went (internal/publish-status):
+# PUBLISHED once the pointer is flipped, FAILED when any step fails. That is
+# what the builder's Publish dialog shows the admin; without it every publish
+# reads "pending" until the UI gives up.
+#
 # Required repository secrets (all server-to-server; none reach the built app):
 #   WSTD_SERVICE_TOKEN          TRPC_SERVER_API_TOKEN of the deployed builder
+#                               (also authenticates the publish-status report)
 #   VERCEL_TOKEN                scoped deploy token for the sites project
 #   VERCEL_ORG_ID               Vercel team/org id
 #   VERCEL_SITES_PROJECT_ID     project id of organizeos-sites
@@ -91,3 +97,23 @@ jobs:
               "buildId": "${{ inputs.build_id }}",
               "deploymentUrl": "${{ steps.deploy.outputs.deployment_url }}"
             }'
+
+      - name: Report the build as published
+        # The site is live once the pointer is flipped; a failed status report
+        # must not fail the run (and so must not mark the build FAILED below).
+        continue-on-error: true
+        run: |
+          curl --fail-with-body -sS --retry 3 --retry-all-errors -X POST \
+            "${{ vars.BUILDER_ORIGIN }}/internal/publish-status" \
+            -H "Authorization: ${{ secrets.WSTD_SERVICE_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"buildId": "${{ inputs.build_id }}", "status": "PUBLISHED"}'
+
+      - name: Report the build as failed
+        if: failure()
+        run: |
+          curl --fail-with-body -sS --retry 3 --retry-all-errors -X POST \
+            "${{ vars.BUILDER_ORIGIN }}/internal/publish-status" \
+            -H "Authorization: ${{ secrets.WSTD_SERVICE_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"buildId": "${{ inputs.build_id }}", "status": "FAILED"}'

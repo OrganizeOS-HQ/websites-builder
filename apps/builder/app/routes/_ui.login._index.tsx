@@ -78,6 +78,7 @@ export const loader = async ({
 
   return json(
     {
+      platformUrl: env.ORGANIZEOS_APP_URL,
       isSecretLoginEnabled: env.DEV_LOGIN === "true",
       devPlanNames:
         env.DEV_LOGIN === "true" ? [...parsePlansEnv(env.PLANS).keys()] : [],

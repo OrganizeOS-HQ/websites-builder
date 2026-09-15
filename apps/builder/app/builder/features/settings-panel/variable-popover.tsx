@@ -16,7 +16,7 @@ import {
   useCallback,
   useMemo,
 } from "react";
-import { CopyIcon, RefreshIcon, UpgradeIcon } from "@webstudio-is/icons";
+import { CopyIcon, RefreshIcon } from "@webstudio-is/icons";
 import {
   Box,
   Button,
@@ -90,7 +90,7 @@ import {
   getResourceKey,
   invalidateResource,
 } from "~/shared/resources";
-import { planUpgradeHint } from "~/shared/branding";
+import { planBadgeLabel, planUpgradeHint } from "~/shared/branding";
 
 const NameField = ({
   variable,
@@ -222,7 +222,7 @@ const TypeField = ({
       label: (
         <Flex direction="row" gap="2" align="center">
           Resource
-          {allowDynamicData === false && <ProBadge>Pro</ProBadge>}
+          {allowDynamicData === false && <ProBadge>{planBadgeLabel}</ProBadge>}
         </Flex>
       ),
       description:
@@ -233,7 +233,7 @@ const TypeField = ({
       label: (
         <Flex direction="row" gap="2" align="center">
           GraphQL
-          {allowDynamicData === false && <ProBadge>Pro</ProBadge>}
+          {allowDynamicData === false && <ProBadge>{planBadgeLabel}</ProBadge>}
         </Flex>
       ),
       description:
@@ -244,7 +244,7 @@ const TypeField = ({
       label: (
         <Flex direction="row" gap="2" align="center">
           System Resource
-          {allowDynamicData === false && <ProBadge>Pro</ProBadge>}
+          {allowDynamicData === false && <ProBadge>{planBadgeLabel}</ProBadge>}
         </Flex>
       ),
       description: "A System Resource is a configuration for builder data.",
@@ -579,13 +579,10 @@ const VariablePanelForm = forwardRef<
         {requiresUpgrade && (
           <PanelBanner>
             <Text>
-              Resource fetching is part of the CMS functionality, which is not
-              included in your plan.
+              Binding external data is not included in your plan, so this
+              variable will not fetch anything.
             </Text>
-            <Flex align="center" gap={1}>
-              <UpgradeIcon />
-              <Text>{planUpgradeHint}</Text>
-            </Flex>
+            <Text>{planUpgradeHint}</Text>
           </PanelBanner>
         )}
         <Flex
