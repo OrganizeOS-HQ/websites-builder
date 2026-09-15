@@ -84,6 +84,21 @@ OrganizeOS integration (all optional; each feature ships dark until its variable
 - `PUBLISHER_HOST` — **set this to the platform base domain (`organizeos.org`)**. An org's site is served at `<subdomain>.<PUBLISHER_HOST>`; with the org subdomain mirrored into `Project.domain` (§5) every address the builder shows is the real one. Upstream's default is `wstd.work`.
 - `TRPC_SERVER_API_TOKEN` — the builder's service token. The publish executor uses it to sync the build **and** to report the outcome to `POST /internal/publish-status` (§5).
 
+### Deploying the builder itself
+
+`vercel.json` sets `git.deploymentEnabled` to `true`. Upstream ships it as
+`false`, which tells Vercel to skip **every** branch: Webstudio deploys its own
+way, so for them the setting is correct and invisible. For this fork it meant
+merging to `main` changed nothing — production kept serving whatever commit was
+last deployed by hand, and four merged PRs went live nowhere. Keep this `true`
+on upstream merges; it is a one-line conflict that silently reverts to "nothing
+deploys" if taken from upstream.
+
+This also enables preview deployments for pushes to other branches. To keep
+production auto-deploys without previews, the map form is
+`{ "main": true, "**": false }` — note `**`, because minimatch's `*` does not
+cross the `/` in a branch name like `claude/thing`.
+
 ## 5. The OrganizeOS loop: SSO → build → Publish → back
 
 How an org admin's session is wired end to end, and which side owns each step. The OrganizeOS repo is `OrganizeOS-HQ/OrganizeOS` (`client/lib/websites2/*`, `client/lib/actions/websites/*`, `client/app/api/websites2/*`, `client/app/api/internal/websites2/*`).
