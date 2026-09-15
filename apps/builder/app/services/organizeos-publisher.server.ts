@@ -1,4 +1,5 @@
 import type { TrpcInterfaceClient } from "@webstudio-is/trpc-interface/index.server";
+import { platformName } from "~/shared/branding";
 import {
   markBuildPublishStatus,
   type BuildStatusClient,
@@ -23,6 +24,9 @@ import {
  */
 
 const SERVICE_EMAIL_PATTERN = /^org\+(.+)@svc\.organizeos\.internal$/;
+
+/** The executor workflow, which must exist on the publish repo's default branch. */
+const WORKFLOW_FILE = "publish-site.yml";
 
 /** Extract the organizationId from a synthetic service-owner email, or null. */
 export const parseOrganizationIdFromServiceEmail = (
@@ -96,6 +100,24 @@ export const resolveOrganizationIdForBuild = async (
   return parseOrganizationIdFromServiceEmail(email);
 };
 
+const RETRY_MESSAGE = "Publishing could not be started. Please try again.";
+const SETUP_MESSAGE = `Publishing is not set up correctly for this site. Please contact ${platformName} support.`;
+
+/**
+ * Which failure the admin is looking at.
+ *
+ * A dispatch rejected for credentials, a missing repo or workflow, or a
+ * payload the workflow will not accept fails identically on the next click —
+ * telling the admin to "try again" wastes their time and hides a
+ * configuration problem nobody is watching for. A 5xx or a dropped connection
+ * genuinely may succeed on a retry.
+ *
+ * The distinction is the only thing that reaches the UI: the status code and
+ * the provider stay in the server log, never in product copy.
+ */
+const isSetupFailure = (status: number) =>
+  status === 401 || status === 403 || status === 404 || status === 422;
+
 /**
  * A publish that never reached the executor would otherwise sit PENDING until
  * the UI's timeout; mark it FAILED now so the admin sees the outcome at once.
@@ -147,9 +169,11 @@ export const createOrganizeosPublisher = (
           };
         }
 
-        const response = await fetcher(
-          `https://api.github.com/repos/${deps.repo}/actions/workflows/publish-site.yml/dispatches`,
-          {
+        const workflowUrl = `https://api.github.com/repos/${deps.repo}/actions/workflows/${WORKFLOW_FILE}/dispatches`;
+
+        let response: Response;
+        try {
+          response = await fetcher(workflowUrl, {
             method: "POST",
             headers: {
               Authorization: `Bearer ${deps.githubToken}`,
@@ -163,19 +187,33 @@ export const createOrganizeosPublisher = (
                 organization_id: organizationId,
               },
             }),
-          }
-        );
+          });
+        } catch (error) {
+          // The request never completed. Without this the build would sit
+          // PENDING until the dialog's timeout, reporting nothing.
+          console.error(
+            `[organizeos-publisher] dispatch request failed for ${deps.repo}/${WORKFLOW_FILE}`,
+            error
+          );
+          await markFailed(deps.client, input.buildId);
+          return { success: false as const, error: RETRY_MESSAGE };
+        }
 
         if (response.status !== 204) {
+          // Name the repo and workflow: a mis-set ORGANIZEOS_PUBLISH_REPO is
+          // otherwise indistinguishable from a bad token, and both look like
+          // the same generic failure to the admin.
           console.error(
-            "[organizeos-publisher] dispatch failed",
+            `[organizeos-publisher] dispatch rejected for ${deps.repo}/${WORKFLOW_FILE}`,
             response.status,
             await response.text().catch(() => "")
           );
           await markFailed(deps.client, input.buildId);
           return {
             success: false as const,
-            error: "Publishing could not be started. Please try again.",
+            error: isSetupFailure(response.status)
+              ? SETUP_MESSAGE
+              : RETRY_MESSAGE,
           };
         }
 

@@ -169,10 +169,9 @@ describe("createOrganizeosPublisher", () => {
     ]);
   });
 
-  test("fails with generic copy when the dispatch is rejected", async () => {
+  /** Run a publish against a fetcher, returning the result and status writes. */
+  const publishWith = async (fetcher: typeof fetch) => {
     const statusUpdates: Array<StatusUpdate> = [];
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const fetcher = vi.fn(async () => new Response("nope", { status: 401 }));
     const publisher = createOrganizeosPublisher({
       ...deps,
       client: makeClient(HAPPY_ROWS, statusUpdates),
@@ -183,10 +182,59 @@ describe("createOrganizeosPublisher", () => {
         buildId: string;
       }) => Promise<{ success: boolean; error?: string }>
     )({ buildId: "build-1" });
+    return { result, statusUpdates };
+  };
+
+  test("fails with generic copy when the dispatch is rejected", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { result, statusUpdates } = await publishWith(
+      vi.fn(async () => new Response("nope", { status: 401 }))
+    );
 
     expect(result.success).toBe(false);
     // Never leak provider/status detail into user-facing copy.
     expect(JSON.stringify(result)).not.toMatch(/github|401/i);
+    expect(statusUpdates.map((update) => update.values)).toEqual([
+      { publishStatus: "FAILED" },
+    ]);
+  });
+
+  // A dispatch GitHub refuses on credentials, a missing repo/workflow or an
+  // unacceptable payload refuses the next click identically: "try again" would
+  // send the admin round a loop that cannot end.
+  test.each([401, 403, 404, 422])(
+    "tells the admin a %i is a setup problem, not something to retry",
+    async (status) => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const { result } = await publishWith(
+        vi.fn(async () => new Response("nope", { status }))
+      );
+
+      expect(result.error).toMatch(/not set up/i);
+      expect(result.error).not.toMatch(/try again/i);
+    }
+  );
+
+  test.each([500, 502, 429])("asks to retry after a %i", async (status) => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { result } = await publishWith(
+      vi.fn(async () => new Response("nope", { status }))
+    );
+
+    expect(result.error).toMatch(/try again/i);
+  });
+
+  test("fails the build when the dispatch request never completes", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { result, statusUpdates } = await publishWith(
+      vi.fn(async () => {
+        throw new TypeError("fetch failed");
+      })
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/try again/i);
+    // Without this the build sits PENDING until the dialog gives up on it.
     expect(statusUpdates.map((update) => update.values)).toEqual([
       { publishStatus: "FAILED" },
     ]);
