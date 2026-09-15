@@ -31,7 +31,8 @@ export const planUpgradeHint = `Ask your ${platformName} administrator to upgrad
  * keep it reachable from the app chrome — it is a license obligation, not a
  * marketing link.
  */
-export const sourceCodeUrl = "https://github.com/OrganizeOS-HQ/websites-builder";
+export const sourceCodeUrl =
+  "https://github.com/OrganizeOS-HQ/websites-builder";
 
 /** Label for the source offer. Neutral on purpose — it is not a product ad. */
 export const sourceCodeLabel = "Source code";
