@@ -224,7 +224,7 @@ export const createOrganizeosPublisher = (
       mutate: async () => {
         return {
           success: false as const,
-          error: "Unpublishing is managed from your organization settings.",
+          error: `To unpublish, use "Switch back to Website Lite" on your site's Website page in ${platformName}.`,
         };
       },
     },

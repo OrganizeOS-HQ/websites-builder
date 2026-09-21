@@ -41,9 +41,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   // Land directly in the org's project builder (the org has exactly one
   // project, derived from the token's organizationId), skipping the fork
-  // dashboard: the OrganizeOS Website area is the management surface. A
-  // returnTo cookie from a mid-flow re-auth still takes precedence unless it
-  // points back at that dashboard, and anything unparsable falls back to it.
+  // dashboard: the OrganizeOS Website area is the management surface.
+  //
+  // Note the stored returnTo is always absent in practice: the cookie header
+  // was deleted above, so returnToPath finds nothing on a real entry. The
+  // resolveSsoReturnTo call is kept as the second lock -- it is what stops a
+  // /dashboard returnTo outranking the deep link if that strip ever stops
+  // happening -- but it is not what makes the deep link win today.
   // Clone the request: the authenticator consumes the original body.
   const token = (await request.clone().formData()).get("token");
   const deepLink =

@@ -63,7 +63,7 @@ This is enabled **purely via the `PLANS` env var** (a JSON array of plan configs
 ]
 ```
 
-Provisioning (a later phase) short-circuits `getProjectPlanFeatures` for org-owned workspaces to this `organizeos` plan.
+Provisioning gives the org's synthetic owner a real plan row (`syncOrgOwnerPlan`: a `Product` plus a `TransactionLog` satisfying the `UserProduct` view), named after this `organizeos` entry, with `Product.meta` carrying only the per-org entitlement delta. Nothing short-circuits `getProjectPlanFeatures` — the plan resolves through the same path as any other user's, which is the point: every independent derivation of plan state in the builder is fed from one place. The SSO token's `entitlements` claim re-syncs it on every entry, so a wrong value heals at the org's next login rather than needing a re-provision.
 
 ## 4. Deploy environment (see `apps/builder/.env`)
 
@@ -81,7 +81,7 @@ OrganizeOS integration (all optional; each feature ships dark until its variable
 - `ORGANIZEOS_SSO_PUBLIC_KEY` — ES256 public key (PEM) that verifies OrganizeOS SSO tokens; registers the `organizeos` dashboard strategy.
 - `ORGANIZEOS_PUBLISH_REPO` + `ORGANIZEOS_PUBLISH_GITHUB_TOKEN` — Publish dispatches `publish-site.yml` in that repo instead of Webstudio's cloud publisher.
 - `ORGANIZEOS_APP_URL` — the OrganizeOS app the builder hands users back to (login page, the builder menu's "Back to OrganizeOS", the org's Website area). Defaults to `https://app.organizeos.org`.
-- `PUBLISHER_HOST` — **set this to the platform base domain (`organizeos.org`)**. An org's site is served at `<subdomain>.<PUBLISHER_HOST>`; with the org subdomain mirrored into `Project.domain` (§5) every address the builder shows is the real one. Upstream's default is `wstd.work`.
+- `PUBLISHER_HOST` — the platform base domain an org's site is served from (`<subdomain>.<PUBLISHER_HOST>`); with the org subdomain mirrored into `Project.domain` (§5) every address the builder shows is the real one. **Defaults to `organizeos.org` in code**, so an unset env is correct rather than dangerous; upstream defaulted it to its own staging domain, which is what made a missing value advertise a Webstudio address. Set it only to point a deployment somewhere else.
 - `TRPC_SERVER_API_TOKEN` — the builder's service token. The publish executor uses it to sync the build **and** to report the outcome to `POST /internal/publish-status` (§5).
 
 ### Deploying the builder itself
@@ -128,3 +128,23 @@ No blocking browser gate. Upstream interrupted Firefox and Safari with a full-sc
 ## 7. OrganizeOS overlay (keep minimal for upstream merges)
 
 Changes confined to: env/config, the proprietary-package removal (this doc §2), auth/SSO + provisioning files (`services/auth-strategy/organizeos*`, `routes/internal.*`, `shared/db/provision.server.ts`, `shared/db/organizeos-*.server.ts`), the publish seam (`services/organizeos-publisher.server.ts`, `shared/db/publish-status.server.ts`, `publish-site.yml`), branding (`shared/branding.ts`, `shared/organizeos-logo.tsx`), the OrganizeOS-only chrome behind `$organizeosSite` (`features/publish/organizeos-publish*.ts*`, small branches in `menu.tsx`, `topbar.tsx`, `publish.tsx`), and the forced CLI route-template patches for the reverse-proxy host/auth/cache. Avoid deep edits to shared component `.tsx`; isolate OrganizeOS code so `upstream main` can be merged with minimal conflict.
+
+## 8. Published-site route template patches
+
+`packages/cli/templates/react-router/app/route-templates/html.tsx` is a forced
+patch (see §5): it is the published site's entry, so the reverse-proxy host,
+auth and cache behaviour have to be right there rather than in a package we
+keep byte-identical.
+
+**Page authentication runs on every host.** Upstream skipped
+`authenticateRequest` whenever the request host equalled `projectDomain` or was
+a subdomain of it, because `projectDomain` was the Webstudio staging label and
+staging carried its own separate credentials. In this fork `Project.domain` is
+the org's platform subdomain (§5), so `acme` matched `acme.organizeos.org` —
+the site's primary public host — and a page the org had password-protected was
+readable by anyone there, while the same page stayed protected on a custom
+domain. There is no staging host here, so the skip protected nothing and was
+removed. Unprotected sites are unaffected: `authenticateRequest` returns early
+when no auth route matches the path.
+
+Do not reinstate a host-based skip when merging upstream.
