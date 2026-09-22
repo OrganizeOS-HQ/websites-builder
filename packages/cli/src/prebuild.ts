@@ -53,6 +53,7 @@ import { htmlToJsx } from "./html-to-jsx";
 import { compareMedia } from "@webstudio-is/css-engine";
 import { materializeAssetFiles } from "./asset-files";
 import { formatZodIssues } from "./zod-utils";
+import { pinRuntimeDependencies } from "./runtime-version";
 
 const createRemixFramework = async () =>
   (await import("./framework-remix")).createFramework();
@@ -243,6 +244,22 @@ export const prebuild = async (options: {
   for (const template of options.template) {
     await copyTemplates(template);
   }
+
+  // OrganizeOS fork: the templates carry the monorepo version placeholder,
+  // which upstream's publish step would have stamped. Pin it to the upstream
+  // release the site installs from npm (see runtime-version.ts).
+  const sitePackageJsonPath = join(cwd(), "package.json");
+  await writeFile(
+    sitePackageJsonPath,
+    JSON.stringify(
+      pinRuntimeDependencies(
+        JSON.parse(await readFile(sitePackageJsonPath, "utf8"))
+      ),
+      null,
+      "  "
+    ),
+    "utf8"
+  );
 
   let framework;
   if (options.template.includes("ssg")) {
