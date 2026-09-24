@@ -89,7 +89,8 @@ jobs:
 
       - name: Flip the OrganizeOS pointer
         run: |
-          curl --fail-with-body -sS -X POST "${{ secrets.PUBLISH_CALLBACK_URL }}" \
+          curl --fail-with-body -sS --retry 3 --retry-all-errors -X POST \
+            "${{ secrets.PUBLISH_CALLBACK_URL }}" \
             -H "Authorization: ${{ secrets.PUBLISH_CALLBACK_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{
