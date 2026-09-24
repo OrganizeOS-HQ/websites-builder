@@ -7,7 +7,12 @@ import {
   isAllowedExtension,
   decodePathFragment,
 } from "@webstudio-is/sdk";
-import { fileUploadPath } from "~/shared/asset-client";
+import { createAssetClient, fileUploadPath } from "~/shared/asset-client";
+import {
+  assetResponseHeaders,
+  proxyRemoteAsset,
+  serveStoredAsset,
+} from "~/shared/asset-response.server";
 
 // This route serves generic assets without processing
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -27,7 +32,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   // Support absolute urls locally
   if (URL.canParse(name)) {
-    return fetch(name);
+    return proxyRemoteAsset(name);
+  }
+
+  const stored = await serveStoredAsset({
+    client: createAssetClient(),
+    name,
+    request,
+    headers: { "Access-Control-Allow-Origin": url.origin },
+  });
+  if (stored !== undefined) {
+    return stored;
   }
 
   const filePath = join(process.cwd(), fileUploadPath, name);
@@ -53,13 +68,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
+  const headers = assetResponseHeaders(contentType);
+  headers.set("Access-Control-Allow-Origin", url.origin);
+
   return new Response(
     createReadableStreamFromReadable(createReadStream(filePath)),
-    {
-      headers: {
-        "content-type": contentType,
-        "Access-Control-Allow-Origin": url.origin,
-      },
-    }
+    { headers }
   );
 };

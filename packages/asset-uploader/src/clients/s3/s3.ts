@@ -1,6 +1,7 @@
 import { Sha256 } from "@aws-crypto/sha256-js";
 import { SignatureV4 } from "@smithy/signature-v4";
 import type { AssetClient } from "../../client";
+import { readFromS3 } from "./read";
 import { uploadToS3 } from "./upload";
 
 type S3ClientOptions = {
@@ -45,7 +46,20 @@ export const createS3Client = (options: S3ClientOptions): AssetClient => {
     });
   };
 
+  const readFile: NonNullable<AssetClient["readFile"]> = (
+    name,
+    { range } = {}
+  ) =>
+    readFromS3({
+      signer,
+      name,
+      endpoint: options.endpoint,
+      bucket: options.bucket,
+      range,
+    });
+
   return {
     uploadFile,
+    readFile,
   };
 };

@@ -72,7 +72,7 @@ Provisioning gives the org's synthetic owner a real plan row (`syncOrgOwnerPlan`
 - `POSTGREST_URL` / `POSTGREST_API_KEY` — OrganizeOS Supabase PostgREST (the builder's data layer).
 - `AUTH_SECRET` — builder session secret.
 - `PLANS` — the JSON above (enables data-binding + the admin-lockout fix).
-- Asset storage (S3/R2-compatible) — `S3_*` / `ASSET_CDN_URL`.
+- Asset storage — `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`. **Required on Vercel**; see "Asset storage" below.
 - `NODE_OPTIONS=--conditions=webstudio` — resolves workspace packages to their AGPL source.
 - Node 22 (repo `engines`; Node 24 works with a benign warning). pnpm 9.14.4 (via `corepack pnpm`).
 
@@ -99,6 +99,51 @@ This also enables preview deployments for pushes to other branches. To keep
 production auto-deploys without previews, the map form is
 `{ "main": true, "**": false }` — note `**`, because minimatch's `*` does not
 cross the `/` in a branch name like `claude/thing`.
+
+### Asset storage
+
+Without the five `S3_*` variables the builder writes uploads under
+`public/cgi/asset` in its own function bundle, which is read-only on Vercel, so
+every image, font and video upload fails. That fallback is for local
+development only.
+
+Use any S3-compatible bucket (Supabase Storage, R2, AWS S3), kept **private**:
+
+- `S3_ENDPOINT` may carry a path. Supabase Storage's S3 endpoint is
+  `https://<project-ref>.supabase.co/storage/v1/s3`; upstream resolved
+  `/<bucket>/<key>` against the endpoint, which dropped that path.
+- Leave `S3_ACL` unset. Nothing reads the bucket anonymously, and some providers
+  do not support ACLs. (`apps/builder/.env` still shows
+  `public-read` from upstream.)
+- Leave `RESIZE_ORIGIN` unset unless an image-resizing service is in front. The
+  builder then serves originals.
+- `MAX_UPLOAD_SIZE` defaults to 4.5 (MB), which is Vercel's limit on a
+  function's request body. Raising it on Vercel does not raise that limit.
+
+Upstream reads files back through an edge proxy that answers `/cgi/image`,
+`/cgi/asset` and `/cgi/video` before the builder sees them. This fork has no
+such proxy, so those routes fetch the object with a signed GET
+(`packages/asset-uploader/src/clients/s3/read.ts`, `AssetClient.readFile`) and
+stream it back, passing range requests through so video can seek. The publish
+CLI downloads every asset through the same routes. Without the read path a
+site with an uploaded image cannot publish either.
+
+`packages/asset-uploader` is not in the byte-identical set (§1). The fork
+changes it in three ways: the endpoint's path is kept, `host` is signed as the
+AWS SDKs do, and the S3 client can read files back.
+
+**These routes answer on the builder's own origin.** Each response they build
+(everything but the `RESIZE_ORIGIN` pass-through) carries
+`Content-Security-Policy: sandbox` (PDFs excepted) and
+`X-Content-Type-Options: nosniff`, so an uploaded `.html` or `.svg` cannot
+run script with an admin's session. The branch for absolute URLs (the canvas
+loads an Image or Video whose `src` is a URL through these routes) fetches only
+http(s) and returns content headers only
+(`apps/builder/app/shared/asset-response.server.ts`). Upstream returns
+`fetch(name)` verbatim, since its proxy answers first. Here that served any
+remote page, `Set-Cookie` included, as a page of the builder. Keep the helper
+on upstream merges. `shared/cgi-routes.server.test.ts` fails if a route goes
+back to returning the remote response.
 
 ## 5. The OrganizeOS loop: SSO → build → Publish → back
 
@@ -128,7 +173,7 @@ No blocking browser gate. Upstream interrupted Firefox and Safari with a full-sc
 
 ## 7. OrganizeOS overlay (keep minimal for upstream merges)
 
-Changes confined to: env/config, the proprietary-package removal (this doc §2), auth/SSO + provisioning files (`services/auth-strategy/organizeos*`, `routes/internal.*`, `shared/db/provision.server.ts`, `shared/db/organizeos-*.server.ts`), the publish seam (`services/organizeos-publisher.server.ts`, `shared/db/publish-status.server.ts`, `publish-site.yml`), branding (`shared/branding.ts`, `shared/organizeos-logo.tsx`), the OrganizeOS-only chrome behind `$organizeosSite` (`features/publish/organizeos-publish*.ts*`, small branches in `menu.tsx`, `topbar.tsx`, `publish.tsx`), and the forced CLI route-template patches for the reverse-proxy host/auth/cache. Avoid deep edits to shared component `.tsx`; isolate OrganizeOS code so `upstream main` can be merged with minimal conflict.
+Changes confined to: env/config, the proprietary-package removal (this doc §2), auth/SSO + provisioning files (`services/auth-strategy/organizeos*`, `routes/internal.*`, `shared/db/provision.server.ts`, `shared/db/organizeos-*.server.ts`), the publish seam (`services/organizeos-publisher.server.ts`, `shared/db/publish-status.server.ts`, `publish-site.yml`), asset serving (`shared/asset-response.server.ts`, the three `routes/cgi.*` loaders, `asset-uploader`'s S3 client), branding (`shared/branding.ts`, `shared/organizeos-logo.tsx`), the OrganizeOS-only chrome behind `$organizeosSite` (`features/publish/organizeos-publish*.ts*`, small branches in `menu.tsx`, `topbar.tsx`, `publish.tsx`), and the forced CLI route-template patches for the reverse-proxy host/auth/cache. Avoid deep edits to shared component `.tsx`; isolate OrganizeOS code so `upstream main` can be merged with minimal conflict.
 
 ## 8. Published-site route template patches
 

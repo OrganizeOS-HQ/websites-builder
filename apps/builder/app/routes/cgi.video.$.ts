@@ -4,7 +4,12 @@ import { createReadableStreamFromReadable } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/server-runtime";
 import env from "~/env/env.server";
 import { getMimeTypeByFilename, decodePathFragment } from "@webstudio-is/sdk";
-import { fileUploadPath } from "~/shared/asset-client";
+import { createAssetClient, fileUploadPath } from "~/shared/asset-client";
+import {
+  assetResponseHeaders,
+  proxyRemoteAsset,
+  serveStoredAsset,
+} from "~/shared/asset-response.server";
 
 // this route used as proxy for videos to cloudflare endpoint or serve local files
 // https://developers.cloudflare.com/fundamentals/get-started/reference/cdn-cgi-endpoint/
@@ -41,7 +46,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   // support absolute urls locally
   if (URL.canParse(name)) {
-    return fetch(name);
+    return proxyRemoteAsset(name);
+  }
+
+  // Range requests go to storage, so seeking works
+  const stored = await serveStoredAsset({
+    client: createAssetClient(),
+    name,
+    request,
+  });
+  if (stored !== undefined) {
+    return stored;
   }
 
   const filePath = join(process.cwd(), fileUploadPath, name);
@@ -54,13 +69,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const contentType = getMimeTypeByFilename(name);
 
+  const headers = assetResponseHeaders(contentType);
+  headers.set("accept-ranges", "bytes");
+
   return new Response(
     createReadableStreamFromReadable(createReadStream(filePath)),
-    {
-      headers: {
-        "content-type": contentType,
-        "accept-ranges": "bytes",
-      },
-    }
+    { headers }
   );
 };
