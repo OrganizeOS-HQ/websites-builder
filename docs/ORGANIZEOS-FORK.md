@@ -107,8 +107,17 @@ Without the five `S3_*` variables the builder writes uploads under
 every image, font and video upload fails. That fallback is for local
 development only.
 
-Use any S3-compatible bucket (Supabase Storage, R2, AWS S3), kept **private**:
+Use any S3-compatible bucket, kept **private**:
 
+- Cloudflare R2 (upstream's own choice; OrganizeOS Drive uses it too):
+  `S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`,
+  `S3_REGION=auto`, and an API token with Object Read & Write on this one
+  bucket only.
+- Supabase Storage in the OrganizeOS production project: the bucket has to
+  arrive as a migration in the OrganizeOS repo (its `CLAUDE.md` forbids
+  dashboard or MCP schema changes to production; every bucket there came in
+  that way). Supabase S3 keys reach every bucket in the project. The builder
+  already holds that project's service-role key, so they add nothing it lacks.
 - `S3_ENDPOINT` may carry a path. Supabase Storage's S3 endpoint is
   `https://<project-ref>.supabase.co/storage/v1/s3`; upstream resolved
   `/<bucket>/<key>` against the endpoint, which dropped that path.
