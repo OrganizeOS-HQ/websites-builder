@@ -2,7 +2,7 @@ import { arrayBuffer } from "node:stream/consumers";
 import type { SignatureV4 } from "@smithy/signature-v4";
 import { type AssetData, getAssetData } from "../../utils/get-asset-data";
 import { createSizeLimiter } from "../../utils/size-limiter";
-import { extendedEncodeURIComponent } from "../../utils/sanitize-s3-key";
+import { getS3ObjectUrl } from "./object-url";
 import { getMimeTypeByFilename } from "@webstudio-is/sdk";
 
 export const uploadToS3 = async ({
@@ -36,10 +36,7 @@ export const uploadToS3 = async ({
   // Also check if S3 client has an option to check the size limit
   const data = await arrayBuffer(limitSize(dataStream));
 
-  const url = new URL(
-    `/${bucket}/${extendedEncodeURIComponent(name)}`,
-    endpoint
-  );
+  const url = getS3ObjectUrl({ endpoint, bucket, name });
 
   // Use proper MIME type based on file extension instead of generic type category
   const contentType = getMimeTypeByFilename(name);
@@ -50,6 +47,8 @@ export const uploadToS3 = async ({
     hostname: url.hostname,
     path: url.pathname,
     headers: {
+      // signed like the AWS SDKs do; fetch derives the same value from the URL
+      host: url.host,
       "x-amz-date": new Date().toISOString(),
       "Content-Type": contentType,
       "Content-Length": `${data.byteLength}`,
@@ -63,9 +62,12 @@ export const uploadToS3 = async ({
     body: data,
   });
 
+  const headers = new Headers(s3Request.headers);
+  headers.delete("host");
+
   const response = await fetch(url, {
     method: s3Request.method,
-    headers: s3Request.headers,
+    headers,
     body: data,
   });
 

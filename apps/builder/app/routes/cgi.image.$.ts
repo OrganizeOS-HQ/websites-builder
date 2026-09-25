@@ -7,7 +7,12 @@ import { wsImageLoader } from "@webstudio-is/image";
 import { decodePathFragment } from "@webstudio-is/sdk";
 import env from "~/env/env.server";
 import { getImageNameAndType } from "~/builder/shared/assets/asset-utils";
-import { fileUploadPath } from "~/shared/asset-client";
+import { createAssetClient, fileUploadPath } from "~/shared/asset-client";
+import {
+  assetResponseHeaders,
+  proxyRemoteAsset,
+  serveStoredAsset,
+} from "~/shared/asset-response.server";
 
 const imageParams = z.object({
   width: z.string().transform((value) => Math.round(parseFloat(value))),
@@ -101,8 +106,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   // support absolute urls locally
   if (URL.canParse(name)) {
-    return fetch(name);
+    return proxyRemoteAsset(name);
   }
+
+  // Without a resize origin the original is served, as from disk below
+  const stored = await serveStoredAsset({
+    client: createAssetClient(),
+    name,
+    request,
+  });
+  if (stored !== undefined) {
+    return stored;
+  }
+
   const filePath = join(process.cwd(), fileUploadPath, name);
 
   if (existsSync(filePath) === false) {
@@ -115,10 +131,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return new Response(
     createReadableStreamFromReadable(createReadStream(filePath)),
-    {
-      headers: {
-        "content-type": contentType,
-      },
-    }
+    { headers: assetResponseHeaders(contentType) }
   );
 };
