@@ -88,8 +88,14 @@ jobs:
           echo "Deployed: $url"
 
       - name: Flip the OrganizeOS pointer
+        # curl fails only on 4xx and 5xx. A redirect (an http:// or slightly
+        # different PUBLISH_CALLBACK_URL answers 308) would pass while flipping
+        # nothing, and the run would still report the build PUBLISHED. Anything
+        # but a 2xx fails the run.
         run: |
-          curl --fail-with-body -sS --retry 3 --retry-all-errors -X POST \
+          response="$RUNNER_TEMP/callback-response.txt"
+          status=$(curl --fail-with-body -sS --retry 3 --retry-all-errors \
+            -o "$response" -w '%{http_code}' -X POST \
             "${{ secrets.PUBLISH_CALLBACK_URL }}" \
             -H "Authorization: ${{ secrets.PUBLISH_CALLBACK_TOKEN }}" \
             -H "Content-Type: application/json" \
@@ -97,7 +103,16 @@ jobs:
               "organizationId": "${{ inputs.organization_id }}",
               "buildId": "${{ inputs.build_id }}",
               "deploymentUrl": "${{ steps.deploy.outputs.deployment_url }}"
-            }'
+            }') || { cat "$response"; echo; exit 1; }
+          cat "$response"
+          echo
+          case "$status" in
+            2??) echo "Pointer flipped ($status)" ;;
+            *)
+              echo "::error::The publish callback answered $status, so the pointer was not flipped. PUBLISH_CALLBACK_URL must be the exact https URL, with no redirect."
+              exit 1
+              ;;
+          esac
 
       - name: Report the build as published
         # The site is live once the pointer is flipped; a failed status report
