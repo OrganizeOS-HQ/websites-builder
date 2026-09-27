@@ -203,3 +203,15 @@ removed. Unprotected sites are unaffected: `authenticateRequest` returns early
 when no auth route matches the path.
 
 Do not reinstate a host-based skip when merging upstream.
+
+**Published images are served as originals.** The `imageLoader` in
+`packages/cli/templates/react-router-vercel/app/constants.mjs` (and its copy in
+`fixtures/react-router-vercel`) returns `src` unchanged. Upstream builds
+`/_vercel/image?url=&w=&q=` URLs, which the sites deployment's own optimizer
+would answer. Here a site is served on the org's host through the OrganizeOS
+proxy, and Vercel answers `/_vercel/image` on that host with the OrganizeOS
+app's optimizer instead. Its allowed widths and qualities are not the
+builder's, and it cannot fetch this deployment's `/assets/*`, so every
+optimized URL failed with `INVALID_IMAGE_OPTIMIZE_REQUEST`. Real image
+optimization is a later item to design with the OrganizeOS side. Keep the
+patch on upstream merges.
