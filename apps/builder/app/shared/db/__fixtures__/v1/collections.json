@@ -1,0 +1,97 @@
+{
+  "data": [
+    {
+      "slug": "blog",
+      "name": "Blog posts",
+      "singularName": "Blog post",
+      "kind": "curated",
+      "itemCount": 3,
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "kind": "text",
+          "required": true,
+          "isTitle": true
+        },
+        { "key": "summary", "label": "Summary", "kind": "textarea" },
+        {
+          "key": "body",
+          "label": "Body",
+          "kind": "richtext",
+          "required": true
+        },
+        { "key": "cover", "label": "Cover image", "kind": "image" },
+        { "key": "link", "label": "Source link", "kind": "link" },
+        { "key": "email", "label": "Contact email", "kind": "email" },
+        { "key": "phone", "label": "Contact phone", "kind": "phone" },
+        {
+          "key": "readingMinutes",
+          "label": "Reading time in minutes",
+          "kind": "number"
+        },
+        { "key": "publishedOn", "label": "Published on", "kind": "date" },
+        { "key": "startsAt", "label": "Starts at", "kind": "datetime" },
+        { "key": "featured", "label": "Featured", "kind": "switch" },
+        { "key": "accent", "label": "Accent color", "kind": "color" },
+        {
+          "key": "category",
+          "label": "Category",
+          "kind": "option",
+          "options": [
+            { "value": "news", "label": "News" },
+            { "value": "story", "label": "Story" }
+          ]
+        },
+        {
+          "key": "author",
+          "label": "Author",
+          "kind": "reference",
+          "reference": { "collectionSlug": "team", "multiple": false }
+        },
+        {
+          "key": "tags",
+          "label": "Tags",
+          "kind": "multireference",
+          "reference": { "collectionSlug": "tags", "multiple": true }
+        }
+      ]
+    },
+    {
+      "slug": "team",
+      "name": "Team",
+      "singularName": "Team member",
+      "kind": "curated",
+      "itemCount": 2,
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "kind": "text",
+          "required": true,
+          "isTitle": true
+        },
+        { "key": "role", "label": "Role", "kind": "text" },
+        { "key": "photo", "label": "Photo", "kind": "image" },
+        { "key": "bio", "label": "Bio", "kind": "textarea" }
+      ]
+    },
+    {
+      "slug": "tags",
+      "name": "Tags",
+      "singularName": "Tag",
+      "kind": "custom",
+      "itemCount": 3,
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "kind": "text",
+          "required": true,
+          "isTitle": true
+        },
+        { "key": "description", "label": "Description", "kind": "textarea" }
+      ]
+    }
+  ]
+}
