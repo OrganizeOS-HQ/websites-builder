@@ -554,6 +554,137 @@ describe("prebuild", () => {
     });
   });
 
+  // OrganizeOS fork: every page route's loader fetches its resources through
+  // the in-memory cache the react-router template carries
+  // (templates/react-router/app/organizeos-resource-cache.ts).
+  describe("routes resource fetches through the resource cache", () => {
+    const cacheModule = join("app", "organizeos-resource-cache.ts");
+    const routes = [
+      {
+        documentType: "html",
+        file: join("app", "routes", "_index.tsx"),
+        cache: `createResourceCache({\n  fetch: (input, init) => cachedFetch(projectId, input, init),\n})`,
+      },
+      {
+        documentType: "xml",
+        file: join("app", "routes", "[feed.xml]._index.tsx"),
+        cache: "createResourceCache()",
+      },
+      {
+        documentType: "text",
+        file: join("app", "routes", "[notes.txt]._index.tsx"),
+        cache: "createResourceCache()",
+      },
+    ];
+
+    /** The body of a route's customFetch, up to its closing brace. */
+    const getCustomFetch = (route: string) => {
+      const start = route.indexOf("const customFetch: typeof fetch");
+      return route.slice(start, route.indexOf("\n};\n", start));
+    };
+
+    beforeEach(async () => {
+      await writeSiteData(
+        createSiteData({
+          pages: [
+            {
+              id: "home",
+              name: "Home",
+              title: "Home",
+              path: "",
+              rootInstanceId: "root",
+              meta: {},
+            },
+            {
+              id: "feed",
+              name: "Feed",
+              title: "Feed",
+              path: "/feed.xml",
+              rootInstanceId: "xml-root",
+              meta: { documentType: "xml" },
+            },
+            {
+              id: "notes",
+              name: "Notes",
+              title: "Notes",
+              path: "/notes.txt",
+              rootInstanceId: "root",
+              meta: { documentType: "text" },
+            },
+          ],
+          instances: [
+            ["root", { id: "root", component: "Box", children: [] }],
+            [
+              "xml-root",
+              {
+                id: "xml-root",
+                component: "Box",
+                children: [{ type: "id", value: "xml-feed" }],
+              },
+            ],
+            [
+              "xml-feed",
+              {
+                id: "xml-feed",
+                component: elementComponent,
+                tag: "rss",
+                children: [],
+              },
+            ],
+          ],
+        })
+      );
+      await prebuild({
+        assets: false,
+        template: ["react-router", "react-router-vercel"],
+      });
+    });
+
+    test("copies the cache module into the site unchanged", async () => {
+      await expect(readFile(cacheModule, "utf8")).resolves.toEqual(
+        await readFile(
+          new URL(
+            "../templates/react-router/app/organizeos-resource-cache.ts",
+            import.meta.url
+          ),
+          "utf8"
+        )
+      );
+    });
+
+    test.each(routes)(
+      "the $documentType route makes one cache and its customFetch falls back to it",
+      async ({ file, cache }) => {
+        const route = await readFile(file, "utf8");
+
+        expect(route).toContain(
+          `import { createResourceCache } from "../organizeos-resource-cache";`
+        );
+        // The import, from app/routes/, reaches the copied module.
+        expect(join(dirname(file), "../organizeos-resource-cache.ts")).toBe(
+          cacheModule
+        );
+        // Made once, at module scope, never per request.
+        expect(route.match(/createResourceCache\(/g)).toHaveLength(1);
+        expect(route).toContain(`\nconst resourceCache = ${cache};\n`);
+        expect(getCustomFetch(route).trimEnd().split("\n").at(-1)).toBe(
+          "  return resourceCache(input, init);"
+        );
+      }
+    );
+
+    test("the form action still posts with plain fetch", async () => {
+      const route = await readFile(routes[0].file, "utf8");
+      const action = route.slice(route.indexOf("export const action"));
+
+      expect(action).toContain(
+        "const { ok, statusText } = await loadResource(fetch, resource);"
+      );
+      expect(action).not.toContain("resourceCache");
+      expect(action).not.toContain("customFetch");
+    });
+  });
+
   test("selects ssg templates and skips dynamic routes", async () => {
     await writeSiteData(
       createSiteData({

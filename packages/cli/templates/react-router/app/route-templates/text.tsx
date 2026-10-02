@@ -6,6 +6,7 @@ import { getPageMeta, getRemixParams, getResources } from "__SERVER__";
 import { sitemap } from "__SITEMAP__";
 import { assets } from "__ASSETS__";
 import { authRoutes } from "__AUTH__";
+import { createResourceCache } from "../organizeos-resource-cache";
 
 const authenticateProductionRequest = (request: Request) => {
   const host =
@@ -24,6 +25,11 @@ const authenticateProductionRequest = (request: Request) => {
 
   return authenticateRequest(request, authRoutes);
 };
+
+// OrganizeOS fork: the loader's resource GETs go through an in-memory cache
+// that follows their own Cache-Control headers (organizeos-resource-cache.ts),
+// made once per route module. Behind it is the global fetch, as before.
+const resourceCache = createResourceCache();
 
 const customFetch: typeof fetch = (input, init) => {
   if (typeof input !== "string") {
@@ -59,7 +65,8 @@ const customFetch: typeof fetch = (input, init) => {
     return Promise.resolve(response);
   }
 
-  return fetch(input, init);
+  // OrganizeOS fork: through the resource cache above.
+  return resourceCache(input, init);
 };
 
 export const loader = async (arg: LoaderFunctionArgs) => {

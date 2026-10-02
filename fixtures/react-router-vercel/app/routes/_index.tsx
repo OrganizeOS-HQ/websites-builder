@@ -45,6 +45,7 @@ import css from "../__generated__/index.css?url";
 import { sitemap } from "../__generated__/$resources.sitemap.xml";
 import { assets } from "../__generated__/$resources.assets";
 import { authRoutes } from "../__generated__/$resources.wsauth.server";
+import { createResourceCache } from "../organizeos-resource-cache";
 
 const authenticateProductionRequest = (request: Request) => {
   const host =
@@ -63,6 +64,15 @@ const authenticateProductionRequest = (request: Request) => {
 
   return authenticateRequest(request, authRoutes);
 };
+
+// OrganizeOS fork: the loader's resource GETs go through an in-memory cache
+// that follows their own Cache-Control headers (organizeos-resource-cache.ts),
+// so a page view stops costing one platform call per resource. It is made
+// once per route module. Behind it is the cachedFetch upstream calls here, so
+// a request that opts into the Cache API still reaches it.
+const resourceCache = createResourceCache({
+  fetch: (input, init) => cachedFetch(projectId, input, init),
+});
 
 const customFetch: typeof fetch = (input, init) => {
   if (typeof input !== "string") {
@@ -100,7 +110,8 @@ const customFetch: typeof fetch = (input, init) => {
     return Promise.resolve(response);
   }
 
-  return cachedFetch(projectId, input, init);
+  // OrganizeOS fork: through the resource cache above.
+  return resourceCache(input, init);
 };
 
 export const loader = async (arg: LoaderFunctionArgs) => {

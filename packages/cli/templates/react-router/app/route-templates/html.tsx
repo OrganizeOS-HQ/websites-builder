@@ -44,6 +44,7 @@ import css from "__CSS__?url";
 import { sitemap } from "__SITEMAP__";
 import { assets } from "__ASSETS__";
 import { authRoutes } from "__AUTH__";
+import { createResourceCache } from "../organizeos-resource-cache";
 
 /**
  * A realm the browser can show to the site's own visitors.
@@ -98,6 +99,15 @@ const authenticateProductionRequest = (request: Request) => {
   }
 };
 
+// OrganizeOS fork: the loader's resource GETs go through an in-memory cache
+// that follows their own Cache-Control headers (organizeos-resource-cache.ts),
+// so a page view stops costing one platform call per resource. It is made
+// once per route module. Behind it is the cachedFetch upstream calls here, so
+// a request that opts into the Cache API still reaches it.
+const resourceCache = createResourceCache({
+  fetch: (input, init) => cachedFetch(projectId, input, init),
+});
+
 const customFetch: typeof fetch = (input, init) => {
   if (typeof input !== "string") {
     return cachedFetch(projectId, input, init);
@@ -134,7 +144,8 @@ const customFetch: typeof fetch = (input, init) => {
     return Promise.resolve(response);
   }
 
-  return cachedFetch(projectId, input, init);
+  // OrganizeOS fork: through the resource cache above.
+  return resourceCache(input, init);
 };
 
 export const loader = async (arg: LoaderFunctionArgs) => {
@@ -195,8 +206,10 @@ export const loader = async (arg: LoaderFunctionArgs) => {
         "Cache-Control":
           // OrganizeOS: always no-store. Pages carry live data via server-side
           // Resources, and the upstream edge honors this header, so max-age=600
-          // would serve ten-minute-stale HTML to the platform reverse proxy
-          // (the /v1 edge cache is the single caching layer).
+          // would serve ten-minute-stale HTML to the platform reverse proxy.
+          // The single caching layer is the resource cache in
+          // organizeos-resource-cache.ts, which keeps each resource only as
+          // long as its own Cache-Control allows.
           "no-store",
       },
     }

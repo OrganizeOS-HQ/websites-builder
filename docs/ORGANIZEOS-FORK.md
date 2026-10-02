@@ -183,7 +183,7 @@ No blocking browser gate. Upstream interrupted Firefox and Safari with a full-sc
 
 ## 7. OrganizeOS overlay (keep minimal for upstream merges)
 
-Changes confined to: env/config, the proprietary-package removal (this doc §2), auth/SSO + provisioning files (`services/auth-strategy/organizeos*`, `routes/internal.*`, `shared/db/provision.server.ts`, `shared/db/organizeos-*.server.ts`, and the data presets `shared/db/resource-presets.server.ts` and `shared/db/signup-form-preset.server.tsx`, whose ids `shared/organizeos-preset-ids.ts` derives for the server and the browser alike), the publish seam (`services/organizeos-publisher.server.ts`, `shared/db/publish-status.server.ts`, `publish-site.yml`), asset serving (`shared/asset-response.server.ts`, the three `routes/cgi.*` loaders, `asset-uploader`'s S3 client), branding (`shared/branding.ts`, `shared/organizeos-logo.tsx`), the OrganizeOS-only chrome behind `$organizeosSite` (`features/publish/organizeos-publish*.ts*`, small branches in `menu.tsx`, `topbar.tsx`, `publish.tsx`), the OrganizeOS blocks (§9: the `packages/sdk-components-organizeos` package, `@organizeos/site-components`, a `workspace:*` dependency in `apps/builder/package.json` and `packages/cli/package.json`, and so in `pnpm-lock.yaml`, registered by one `registerComponentLibrary` call in `canvas/canvas.tsx`; their panel, `features/organizeos-panel/*`, with its tab in `sidebar-left/sidebar-left.tsx` and `sidebar-left/types.ts` and one branch in the canvas's drop handler, `canvas/shared/use-drag-drop.ts`, so a dropped block is bound to the project's data like a clicked one; their record picker, `settings-panel/controls/organizeos-record.tsx`, behind one branch in `settings-panel/controls/combined.tsx`; and the CLI's copy of their build into every published site, `packages/cli/src/organizeos-components.ts`, called from short hooks in `prebuild.ts` and `framework-react-router.ts`, with cases in `prebuild.test.ts`), the guards' wiring (the `check:*` scripts and `checks` in the root `package.json`, and `.github/workflows/main.yml`, both of which also build the blocks' package before the tests), and the forced CLI route-template patches for the reverse-proxy host/auth/cache. Avoid deep edits to shared component `.tsx`; isolate OrganizeOS code so `upstream main` can be merged with minimal conflict.
+Changes confined to: env/config, the proprietary-package removal (this doc §2), auth/SSO + provisioning files (`services/auth-strategy/organizeos*`, `routes/internal.*`, `shared/db/provision.server.ts`, `shared/db/organizeos-*.server.ts`, and the data presets `shared/db/resource-presets.server.ts` and `shared/db/signup-form-preset.server.tsx`, whose ids `shared/organizeos-preset-ids.ts` derives for the server and the browser alike), the publish seam (`services/organizeos-publisher.server.ts`, `shared/db/publish-status.server.ts`, `publish-site.yml`), asset serving (`shared/asset-response.server.ts`, the three `routes/cgi.*` loaders, `asset-uploader`'s S3 client), branding (`shared/branding.ts`, `shared/organizeos-logo.tsx`), the OrganizeOS-only chrome behind `$organizeosSite` (`features/publish/organizeos-publish*.ts*`, small branches in `menu.tsx`, `topbar.tsx`, `publish.tsx`), the OrganizeOS blocks (§9: the `packages/sdk-components-organizeos` package, `@organizeos/site-components`, a `workspace:*` dependency in `apps/builder/package.json` and `packages/cli/package.json`, and so in `pnpm-lock.yaml`, registered by one `registerComponentLibrary` call in `canvas/canvas.tsx`; their panel, `features/organizeos-panel/*`, with its tab in `sidebar-left/sidebar-left.tsx` and `sidebar-left/types.ts` and one branch in the canvas's drop handler, `canvas/shared/use-drag-drop.ts`, so a dropped block is bound to the project's data like a clicked one; their record picker, `settings-panel/controls/organizeos-record.tsx`, behind one branch in `settings-panel/controls/combined.tsx`; and the CLI's copy of their build into every published site, `packages/cli/src/organizeos-components.ts`, called from short hooks in `prebuild.ts` and `framework-react-router.ts`, with cases in `prebuild.test.ts`), the guards' wiring (the `check:*` scripts and `checks` in the root `package.json`, and `.github/workflows/main.yml`, both of which also build the blocks' package before the tests), and the forced CLI route-template patches for the reverse-proxy host/auth/cache (§8), among them the published site's resource cache (`packages/cli/templates/react-router/app/organizeos-resource-cache.ts`, which one marked change in each of the react-router route templates `html.tsx`, `xml.tsx` and `text.tsx` calls, with its tests in `packages/cli/src/organizeos-resource-cache.test.ts` and cases in `prebuild.test.ts`). Avoid deep edits to shared component `.tsx`; isolate OrganizeOS code so `upstream main` can be merged with minimal conflict.
 
 ## 8. Published-site route template patches
 
@@ -216,6 +216,26 @@ builder's, and it cannot fetch this deployment's `/assets/*`, so every
 optimized URL failed with `INVALID_IMAGE_OPTIMIZE_REQUEST`. Real image
 optimization is a later item to design with the OrganizeOS side. Keep the
 patch on upstream merges.
+
+**Resource GETs go through an in-memory cache.** A page renders on every
+request, and its loader fetches every resource the page reaches; Vercel's CDN
+caches none of them (they carry `Authorization`), and the sdk's own hook,
+`cachedFetch`, needs a Cache API the Node runtime lacks. So each of the three
+react-router route templates (`html.tsx`, `xml.tsx`, `text.tsx`) sends the
+final fallback of its loader's `customFetch` through
+`templates/react-router/app/organizeos-resource-cache.ts`, fork code the CLI
+copies into every site, in one marked change. Behind the cache is what the
+template called before: `cachedFetch(projectId, …)` in `html.tsx`, so a
+request that opts into the Cache API still reaches it where there is one, and
+the global `fetch` in the other two. The cache keeps a GET's response only as
+its own `Cache-Control` allows, under RFC 9111's shared-cache rules (the
+module's header lists them), keyed on the URL and every request header, for at
+most 300 seconds; it refreshes an entry once however many requests wait, and
+answers a failed refresh with the stale entry within the response's
+`stale-if-error`. The form action's `loadResource(fetch, resource)` is not
+cached. Each route module makes its own cache, once, so a function instance
+holds one per page route. Keep the patches on upstream merges: without them a
+page view costs one platform call per resource again (§9, the rollout gate).
 
 ## 9. OrganizeOS components
 
@@ -292,9 +312,9 @@ ships the Signup Form. Design and plan are in the OrganizeOS repo
   Step 2 and the insert are separate transactions, so when step 2 adds the
   preset they are two undo steps: one undo removes the block and keeps the
   preset, which a later re-provision rewrites in place. The preset also stays
-  when its blocks are deleted, and a site that has it pays for it on every
-  page view (see the rollout gate below). The target is resolved first, so a
-  block with no place to go adds no preset.
+  when its blocks are deleted, and a site that has it loads it on every page
+  view (see the rollout gate below). The target is resolved first, so a block
+  with no place to go adds no preset.
 
 - **Preset ids**: `apps/builder/app/shared/organizeos-preset-ids.ts`, one
   WebCrypto `uuidV5` that the server and the browser share, pinned by tests to
@@ -306,7 +326,7 @@ ships the Signup Form. Design and plan are in the OrganizeOS repo
   when present. A provision rewrites both Forms records whole (scope, URL and
   token) in a build that has its binding or its resource, and never adds it to
   one that has neither: the panel creates it on the first Signup Form insert,
-  because a `:root` resource costs every page view a call. That mode is
+  because a `:root` resource is loaded on every page view. That mode is
   temporary for Forms if the spec's starter signup page (decision 8) is
   adopted.
 
@@ -365,7 +385,11 @@ control. The Signup Form's `record` is a select:
   `{ error, field? }`. The block maps an outcome it does not know to Success
   and any error to Error, so a frozen build survives new answers.
 - `GET /v1/forms`, through the Forms preset, server-side with the project's
-  read token.
+  read token, with the `Cache-Control` every `/v1` read sends
+  (`public, s-maxage=60, stale-if-error=600`). The site's resource cache (§8)
+  depends on it: without `s-maxage` (or `public` with `max-age`) every page
+  view calls the platform again, and without `stale-if-error` a platform
+  failure shows at once.
 - The Embeds hub route the panel links to.
 - Both sides build to the contract fixtures in OrganizeOS's
   `client/tests/fixtures/site-components/`, which the package copies into
@@ -387,13 +411,26 @@ submit.
 options):
 
 - **Rollout gate.** The Forms preset is `:root`, so every page view of a site
-  that has it makes one uncached `GET /v1/forms` call. The "/v1 edge cache"
-  that `html.tsx`'s `no-store` relies on does not exist: Vercel's CDN never
-  caches a request with an `Authorization` header. The ceiling is the
-  platform's `public_read` limit, 120 a minute per org and site egress IP, and
-  on a 429 a block with a form picked shows Unavailable. The block is not
-  offered beyond the pilot org until the `/v1` cache or a token-keyed loader
-  limit lands.
+  that has it loads `GET /v1/forms`. Vercel's CDN never caches that request
+  (it carries `Authorization`); the published site's resource cache (§8)
+  does. With `/v1`'s `Cache-Control`, each page route of a warm function
+  instance fetches it at most once a minute however many visitors arrive, and
+  through a platform failure or a 429 keeps serving the last good answer for
+  up to ten minutes, trying again only after `Retry-After` (at most a minute)
+  or 10 seconds. The ceiling is still the platform's `public_read` limit, 120
+  a minute per org and site egress IP; on a 429 with nothing stored (a cold
+  instance, or a route not yet loaded) a block with a form picked shows
+  Unavailable. A published build is frozen: a site published before the
+  builder deploy that ships the cache keeps the old loader, one uncached call
+  per page view, until it is republished. So the gate lifts per site, by
+  republishing: the block is not offered beyond the pilot org until the pilot
+  org has republished after that deploy and its `/v1/forms` call rate has been
+  observed.
+- The resource cache is per instance and per page route: each route module
+  makes its own, so on each warm instance a site makes up to one call per
+  preset per page route a minute, the cache's bounds (200 responses and 16 MB
+  of bodies, least recently used evicted first) apply to each route module,
+  and a cold instance starts empty.
 - The data presets never loaded before Forms was scoped: provisioning wrote
   them unscoped, and the builder and the CLI load only a page's or `:root`
   data sources. Events, Fundraisers and Stats are still unscoped, pending an
