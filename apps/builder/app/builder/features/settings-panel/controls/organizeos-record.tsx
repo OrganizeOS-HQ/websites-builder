@@ -173,7 +173,10 @@ const getOptionKey = (option: OrganizeosRecordOption) =>
 
 const getOptionLabel = (option: OrganizeosRecordOption) => option.label;
 
-const noDataHint = `Your forms load from ${platformName}. If none appear, open the builder again from your Website area in ${platformName}.`;
+// Shown while the forms load and when they fail to. Reloading retries a load
+// that failed or stalled; it cannot restore a preset whose link to the org's
+// data was removed (OrganizeOS spec section 12, item 17), which support can.
+const noDataHint = `Your forms load from ${platformName}. If they do not appear, reload the builder; if they still do not, contact ${platformName} support.`;
 
 /**
  * A select with `select.tsx`'s binding support, over the options above, and a
