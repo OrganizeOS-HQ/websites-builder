@@ -222,20 +222,28 @@ request, and its loader fetches every resource the page reaches; Vercel's CDN
 caches none of them (they carry `Authorization`), and the sdk's own hook,
 `cachedFetch`, needs a Cache API the Node runtime lacks. So each of the three
 react-router route templates (`html.tsx`, `xml.tsx`, `text.tsx`) sends the
-final fallback of its loader's `customFetch` through
+final fallback of its loader's `customFetch` through `siteResourceCache`, in
+one marked change. That is the one instance
 `templates/react-router/app/organizeos-resource-cache.ts`, fork code the CLI
-copies into every site, in one marked change. Behind the cache is what the
-template called before: `cachedFetch(projectId, …)` in `html.tsx`, so a
-request that opts into the Cache API still reaches it where there is one, and
-the global `fetch` in the other two. The cache keeps a GET's response only as
-its own `Cache-Control` allows, under RFC 9111's shared-cache rules (the
-module's header lists them), keyed on the URL and every request header, for at
-most 300 seconds; it refreshes an entry once however many requests wait, and
-answers a failed refresh with the stale entry within the response's
+copies into every site, creates at module scope. Each call passes the fetch
+behind the cache, which is what the template called before:
+`cachedFetch(projectId, …)` in `html.tsx`, so a request that opts into the
+Cache API still reaches it where there is one, and the global `fetch` in the
+other two. The cache keeps a GET's response only as its own `Cache-Control`
+allows, under RFC 9111's shared-cache rules (the module's header lists them),
+keyed on the URL and every request header, for at most 300 seconds; it
+refreshes an entry once however many requests wait, whichever routes they come
+from, and answers a failed refresh with the stale entry within the response's
 `stale-if-error`. The form action's `loadResource(fetch, resource)` is not
-cached. Each route module makes its own cache, once, so a function instance
-holds one per page route. Keep the patches on upstream merges: without them a
-page view costs one platform call per resource again (§9, the rollout gate).
+cached.
+
+There is one cache per server instance, shared by every route, and its bounds
+(200 responses and 16 MB of bodies, least recently used evicted first) are per
+instance. The Vercel preset puts routes in one server function unless a route
+exports its own `config` (none does), and a build of the fixture shows one
+server bundle with one copy of the module, every route calling the same
+instance. Keep the patches on upstream merges: without them a page view costs
+one platform call per resource again (§9, the rollout gate).
 
 ## 9. OrganizeOS components
 
@@ -413,24 +421,19 @@ options):
 - **Rollout gate.** The Forms preset is `:root`, so every page view of a site
   that has it loads `GET /v1/forms`. Vercel's CDN never caches that request
   (it carries `Authorization`); the published site's resource cache (§8)
-  does. With `/v1`'s `Cache-Control`, each page route of a warm function
-  instance fetches it at most once a minute however many visitors arrive, and
-  through a platform failure or a 429 keeps serving the last good answer for
-  up to ten minutes, trying again only after `Retry-After` (at most a minute)
-  or 10 seconds. The ceiling is still the platform's `public_read` limit, 120
-  a minute per org and site egress IP; on a 429 with nothing stored (a cold
-  instance, or a route not yet loaded) a block with a form picked shows
-  Unavailable. A published build is frozen: a site published before the
-  builder deploy that ships the cache keeps the old loader, one uncached call
-  per page view, until it is republished. So the gate lifts per site, by
-  republishing: the block is not offered beyond the pilot org until the pilot
-  org has republished after that deploy and its `/v1/forms` call rate has been
-  observed.
-- The resource cache is per instance and per page route: each route module
-  makes its own, so on each warm instance a site makes up to one call per
-  preset per page route a minute, the cache's bounds (200 responses and 16 MB
-  of bodies, least recently used evicted first) apply to each route module,
-  and a cold instance starts empty.
+  does. With `/v1`'s `Cache-Control`, each warm function instance fetches it
+  at most once a minute, however many visitors arrive and whichever pages
+  they open, and through a platform failure or a 429 keeps serving the last
+  good answer for up to ten minutes, trying again only after `Retry-After`
+  (at most a minute) or 10 seconds. The ceiling is still the platform's
+  `public_read` limit, 120 a minute per org and site egress IP, shared by the
+  site's instances behind that address; on a 429 with nothing stored (a cold
+  instance) a block with a form picked shows Unavailable. A published build
+  is frozen: a site published before the builder deploy that ships the cache
+  keeps the old loader, one uncached call per page view, until it is
+  republished. So the gate lifts per site, by republishing: the block is not
+  offered beyond the pilot org until the pilot org has republished after that
+  deploy and its `/v1/forms` call rate has been observed.
 - The data presets never loaded before Forms was scoped: provisioning wrote
   them unscoped, and the builder and the CLI load only a page's or `:root`
   data sources. Events, Fundraisers and Stats are still unscoped, pending an

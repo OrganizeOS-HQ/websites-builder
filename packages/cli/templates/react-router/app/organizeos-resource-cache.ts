@@ -24,11 +24,18 @@
  * names 500, 502, 503 and 504: treating 429 as a failure is this cache's
  * extension, right for /v1, where OrganizeOS owns both ends.
  *
+ * Every route of a site uses one instance, siteResourceCache, so a server
+ * instance holds one cache, whichever pages it serves. Each route passes the
+ * fetch it called before as the third argument.
+ *
  * It ships raw into every generated site, so it imports nothing.
  */
 
 type ResourceCacheOptions = {
-  /** The fetch behind the cache. Default: the global fetch, looked up per call. */
+  /**
+   * The fetch behind the cache when a call passes none. Default: the global
+   * fetch, looked up per call.
+   */
   fetch?: typeof fetch;
   /** The clock, in milliseconds. */
   now?: () => number;
@@ -38,6 +45,18 @@ type ResourceCacheOptions = {
   /** A larger body is not stored. */
   maxEntryBytes?: number;
 };
+
+/**
+ * A fetch whose optional third argument is the fetch behind the cache for this
+ * call: it makes the request on a miss, a refresh, and a request that goes
+ * straight through. Entries are shared whichever fetch stored them: one key is
+ * one request, so it has one response.
+ */
+type ResourceCache = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  underlyingFetch?: typeof fetch
+) => Promise<Response>;
 
 /** A response as it is shared and stored. The sdk reads only the body text. */
 type Snapshot = {
@@ -173,8 +192,8 @@ const describeUrl = (url: string) => {
 
 export const createResourceCache = (
   options: ResourceCacheOptions = {}
-): typeof fetch => {
-  const underlyingFetch: typeof fetch =
+): ResourceCache => {
+  const defaultFetch: typeof fetch =
     options.fetch ?? ((input, init) => fetch(input, init));
   const now = options.now ?? Date.now;
   const maxEntries = options.maxEntries ?? 200;
@@ -249,11 +268,15 @@ export const createResourceCache = (
 
   const refresh = async (
     key: string,
-    url: string,
-    init: RequestInit | undefined,
-    stale: Entry | undefined,
-    hasAuthorization: boolean
+    request: {
+      url: string;
+      init: RequestInit | undefined;
+      underlyingFetch: typeof fetch;
+      hasAuthorization: boolean;
+    },
+    stale: Entry | undefined
   ): Promise<Snapshot> => {
+    const { url, init, underlyingFetch, hasAuthorization } = request;
     const requestedAt = now();
     let response: Response;
     let body: string;
@@ -325,7 +348,7 @@ export const createResourceCache = (
     return snapshot;
   };
 
-  return async (input, init) => {
+  return async (input, init, underlyingFetch = defaultFetch) => {
     // The sdk passes a string URL; anything else goes straight through.
     if (
       typeof input !== "string" ||
@@ -366,10 +389,13 @@ export const createResourceCache = (
     if (pending === undefined) {
       pending = refresh(
         key,
-        input,
-        init,
-        entry,
-        headers.has("authorization")
+        {
+          url: input,
+          init,
+          underlyingFetch,
+          hasAuthorization: headers.has("authorization"),
+        },
+        entry
       ).finally(() => {
         inFlight.delete(key);
       });
@@ -378,3 +404,9 @@ export const createResourceCache = (
     return toResponse(await pending);
   };
 };
+
+/**
+ * The site's cache, made once per server instance: every route imports this
+ * module, so all of them share it.
+ */
+export const siteResourceCache = createResourceCache();

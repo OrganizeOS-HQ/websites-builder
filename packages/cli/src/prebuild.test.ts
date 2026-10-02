@@ -555,32 +555,34 @@ describe("prebuild", () => {
   });
 
   // OrganizeOS fork: every page route's loader fetches its resources through
-  // the in-memory cache the react-router template carries
+  // the site's one in-memory cache, which the react-router template carries
   // (templates/react-router/app/organizeos-resource-cache.ts).
-  describe("routes resource fetches through the resource cache", () => {
+  describe("routes resource fetches through the site's resource cache", () => {
     const cacheModule = join("app", "organizeos-resource-cache.ts");
     const routes = [
       {
         documentType: "html",
         file: join("app", "routes", "_index.tsx"),
-        cache: `createResourceCache({\n  fetch: (input, init) => cachedFetch(projectId, input, init),\n})`,
+        // with the cachedFetch it called before behind the cache
+        fallback: `return siteResourceCache(input, init, (input, init) =>\n    cachedFetch(projectId, input, init)\n  );`,
       },
       {
         documentType: "xml",
         file: join("app", "routes", "[feed.xml]._index.tsx"),
-        cache: "createResourceCache()",
+        fallback: "return siteResourceCache(input, init);",
       },
       {
         documentType: "text",
         file: join("app", "routes", "[notes.txt]._index.tsx"),
-        cache: "createResourceCache()",
+        fallback: "return siteResourceCache(input, init);",
       },
     ];
 
-    /** The body of a route's customFetch, up to its closing brace. */
-    const getCustomFetch = (route: string) => {
+    /** The last statement of a route's customFetch: its fallback. */
+    const getFallback = (route: string) => {
       const start = route.indexOf("const customFetch: typeof fetch");
-      return route.slice(start, route.indexOf("\n};\n", start));
+      const body = route.slice(start, route.indexOf("\n};\n", start));
+      return body.slice(body.lastIndexOf("\n  return ")).trim();
     };
 
     beforeEach(async () => {
@@ -653,23 +655,20 @@ describe("prebuild", () => {
     });
 
     test.each(routes)(
-      "the $documentType route makes one cache and its customFetch falls back to it",
-      async ({ file, cache }) => {
+      "the $documentType route falls back to the site's shared cache and makes none of its own",
+      async ({ file, fallback }) => {
         const route = await readFile(file, "utf8");
 
         expect(route).toContain(
-          `import { createResourceCache } from "../organizeos-resource-cache";`
+          `import { siteResourceCache } from "../organizeos-resource-cache";`
         );
         // The import, from app/routes/, reaches the copied module.
         expect(join(dirname(file), "../organizeos-resource-cache.ts")).toBe(
           cacheModule
         );
-        // Made once, at module scope, never per request.
-        expect(route.match(/createResourceCache\(/g)).toHaveLength(1);
-        expect(route).toContain(`\nconst resourceCache = ${cache};\n`);
-        expect(getCustomFetch(route).trimEnd().split("\n").at(-1)).toBe(
-          "  return resourceCache(input, init);"
-        );
+        expect(getFallback(route)).toBe(fallback);
+        // One cache per server instance, shared by every route.
+        expect(route).not.toContain("createResourceCache");
       }
     );
 

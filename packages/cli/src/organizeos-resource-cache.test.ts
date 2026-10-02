@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { loadResource } from "@webstudio-is/sdk/runtime";
-import { createResourceCache } from "../templates/react-router/app/organizeos-resource-cache";
+import {
+  createResourceCache,
+  siteResourceCache,
+} from "../templates/react-router/app/organizeos-resource-cache";
 
 // OrganizeOS fork: the in-memory resource cache published sites' loaders use
 // (templates/react-router/app/organizeos-resource-cache.ts).
@@ -356,6 +359,109 @@ describe("what it keys on", () => {
       method: "get",
       headers: { Authorization: "Bearer Token-ABC", "X-Site": "Acme" },
     });
+  });
+});
+
+describe("one cache for every route", () => {
+  /** A route's own fetch behind the cache, answering a cacheable body. */
+  const routeFetch = (body: string) =>
+    vi.fn<typeof fetch>(async () =>
+      reply({ body, headers: { "cache-control": cacheable } })
+    );
+
+  test("serves an entry stored through one route's fetch to a call passing another's, without a request", async () => {
+    const { cache, network } = setup();
+    const html = routeFetch("through html");
+    const xml = routeFetch("through xml");
+
+    expect(await read(cache(url, authorized, html))).toBe("through html");
+    expect(await read(cache(url, authorized, xml))).toBe("through html");
+    expect(await read(cache(url, authorized))).toBe("through html");
+
+    expect(html).toHaveBeenCalledTimes(1);
+    expect(xml).not.toHaveBeenCalled();
+    expect(network).not.toHaveBeenCalled();
+  });
+
+  test("a miss, a refresh and a bypass each use the call's own fetch", async () => {
+    const { cache, network, wait } = setup();
+    const missing = routeFetch("first");
+    const refreshing = routeFetch("second");
+    const bypassing = routeFetch("bypassed");
+    const bypassed: Array<[RequestInfo | URL, RequestInit | undefined]> = [
+      [url, { method: "post", ...authorized }],
+      [url, { method: "get", body: "{}" }],
+      [url, { headers: { "Cache-Control": "max-age=60" } }],
+      [new URL(url), undefined],
+    ];
+
+    expect(await read(cache(url, authorized, missing))).toBe("first");
+    wait(60);
+    expect(await read(cache(url, authorized, refreshing))).toBe("second");
+    for (const [input, init] of bypassed) {
+      expect(await read(cache(input, init, bypassing))).toBe("bypassed");
+    }
+
+    expect(missing).toHaveBeenCalledTimes(1);
+    expect(refreshing).toHaveBeenCalledTimes(1);
+    expect(bypassing.mock.calls).toHaveLength(bypassed.length);
+    bypassed.forEach(([input, init], index) => {
+      expect(bypassing.mock.calls[index][0]).toBe(input);
+      expect(bypassing.mock.calls[index][1]).toBe(init);
+    });
+    expect(network).not.toHaveBeenCalled();
+  });
+
+  test("concurrent calls passing different fetches make one request", async () => {
+    const { cache, network } = setup();
+    const response = Promise.withResolvers<Response>();
+    const html = vi.fn<typeof fetch>(() => response.promise);
+    const xml = routeFetch("through xml");
+
+    const requests = [
+      read(cache(url, authorized, html)),
+      read(cache(url, authorized, xml)),
+      read(cache(url, authorized)),
+    ];
+    response.resolve(
+      reply({ body: "through html", headers: { "cache-control": cacheable } })
+    );
+
+    expect(await Promise.all(requests)).toEqual(Array(3).fill("through html"));
+    expect(html).toHaveBeenCalledTimes(1);
+    expect(xml).not.toHaveBeenCalled();
+    expect(network).not.toHaveBeenCalled();
+  });
+});
+
+describe("the site's instance, siteResourceCache", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test("is one cache: what one route stored answers another route", async () => {
+    const at = "https://site.example.org/api/public/v1/forms";
+    const html = vi.fn<typeof fetch>(async () =>
+      reply({ body: "shared", headers: { "cache-control": cacheable } })
+    );
+    const xml = vi.fn<typeof fetch>();
+
+    expect(await read(siteResourceCache(at, authorized, html))).toBe("shared");
+    expect(await read(siteResourceCache(at, authorized, xml))).toBe("shared");
+    expect(await read(siteResourceCache(at, authorized))).toBe("shared");
+
+    expect(html).toHaveBeenCalledTimes(1);
+    expect(xml).not.toHaveBeenCalled();
+  });
+
+  test("uses the global fetch, looked up on each call, when a call passes none", async () => {
+    const at = "https://site.example.org/api/public/v1/events";
+    const global = vi.fn<typeof fetch>(async () => reply({ body: "global" }));
+    vi.stubGlobal("fetch", global);
+
+    expect(await read(siteResourceCache(at, authorized))).toBe("global");
+    expect(global).toHaveBeenCalledTimes(1);
+    expect(global.mock.calls[0][0]).toBe(at);
   });
 });
 
