@@ -13,9 +13,9 @@ Webstudio core is **AGPL-3.0-or-later**. Serving a _modified_ builder to org adm
 - This fork repository is **public**. It must be public **before any non-employee org admin uses the builder**.
 - The builder UI carries a persistent **source-offer link** in its chrome, pointing at the deployed commit of this public fork (added with the branding changes).
 - We do **not** treat the builder as "internal only" — that is a false safe-harbor; §13 attaches the moment an external admin uses the modified builder.
-- Generated **sites** do not trigger any builder-source obligation. The published-site runtime packages (`@webstudio-is/react-sdk`, `sdk`, `sdk-components-react`, `sdk-components-react-radix`, `sdk-components-react-router`, `sdk-components-react-remix`, `image`, `wsauth`: every package the CLI templates install) are kept **byte-identical to upstream** so §13 only ever covers their already-public source. OrganizeOS-specific generation logic lives in the CLI templates / route templates, whose Corresponding Source is offered from the published site under §13.
+- Generated **sites** do not trigger any builder-source obligation. The published-site runtime packages (`@webstudio-is/react-sdk`, `sdk`, `sdk-components-react`, `sdk-components-react-radix`, `sdk-components-react-router`, `sdk-components-react-remix`, `image`, `wsauth`: every package the CLI templates install) are kept **byte-identical to upstream** so §13 only ever covers their already-public source. OrganizeOS-specific generation logic lives in the CLI templates / route templates, whose Corresponding Source is offered from the published site under §13. Generated sites also carry the fork's own OrganizeOS blocks, `@organizeos/site-components` (§9): the CLI copies that package's build into each site as app source, never as an installed package, so the same source offer covers it (OrganizeOS spec section 4.1). That package and the templates are where OrganizeOS site code goes; the runtime packages above stay byte-identical whatever a site carries.
   - The practical consequence: a generated site installs those packages **from npm, at upstream's published version**, not from this fork. The CLI pins them at build time to `PUBLISHED_RUNTIME_VERSION` (`packages/cli/src/runtime-version.ts`), replacing the monorepo placeholder `0.0.0-webstudio-version` that upstream's publish step would otherwise have stamped. That constant must be the upstream release matching this fork's base commit (the first release after it, latest patch) and **must be bumped in the same change as any upstream merge** — a stale value fails only on the next publish, in Vercel's build log.
-  - **CI guard:** `pnpm check:runtime-upstream` (`scripts/check-runtime-upstream.sh`, run in `checks` and in the CI workflow) fails the build if any file in those five packages differs between `HEAD` and the upstream commit this fork is based on, which `scripts/upstream-base.txt` records. Bump that file to the merged upstream commit in the same change as `PUBLISHED_RUNTIME_VERSION`; a stale base reports upstream's own changes as fork changes. The check needs the base in history, so CI checks out with `fetch-depth: 0` and an upstream merge lands as a merge commit, never squashed.
+  - **CI guard:** `pnpm check:runtime-upstream` (`scripts/check-runtime-upstream.sh`, run in `checks` and in the CI workflow) fails the build if any file in those eight packages differs between `HEAD` and the upstream commit this fork is based on, which `scripts/upstream-base.txt` records. Bump that file to the merged upstream commit in the same change as `PUBLISHED_RUNTIME_VERSION`; a stale base reports upstream's own changes as fork changes. The check needs the base in history, so CI checks out with `fetch-depth: 0` and an upstream merge lands as a merge commit, never squashed.
 - If we ever need to keep builder modifications **closed**, the only compliant path is a **commercial/dual license** from Webstudio, Inc. (posture B) — out of scope unless pursued.
 
 ## 2. Proprietary code removed (mandatory)
@@ -183,7 +183,7 @@ No blocking browser gate. Upstream interrupted Firefox and Safari with a full-sc
 
 ## 7. OrganizeOS overlay (keep minimal for upstream merges)
 
-Changes confined to: env/config, the proprietary-package removal (this doc §2), auth/SSO + provisioning files (`services/auth-strategy/organizeos*`, `routes/internal.*`, `shared/db/provision.server.ts`, `shared/db/organizeos-*.server.ts`, and the data presets `shared/db/resource-presets.server.ts` and `shared/db/signup-form-preset.server.tsx`, whose ids `shared/organizeos-preset-ids.ts` derives for the server and the browser alike), the publish seam (`services/organizeos-publisher.server.ts`, `shared/db/publish-status.server.ts`, `publish-site.yml`), asset serving (`shared/asset-response.server.ts`, the three `routes/cgi.*` loaders, `asset-uploader`'s S3 client), branding (`shared/branding.ts`, `shared/organizeos-logo.tsx`), the OrganizeOS-only chrome behind `$organizeosSite` (`features/publish/organizeos-publish*.ts*`, small branches in `menu.tsx`, `topbar.tsx`, `publish.tsx`), the OrganizeOS blocks (the `packages/sdk-components-organizeos` package, `@organizeos/site-components`, registered by one `registerComponentLibrary` call in `canvas/canvas.tsx`; their panel, `features/organizeos-panel/*`, with its tab in `sidebar-left/sidebar-left.tsx` and `sidebar-left/types.ts` and one branch in the canvas's drop handler, `canvas/shared/use-drag-drop.ts`, so a dropped block is bound to the project's data like a clicked one; their record picker, `settings-panel/controls/organizeos-record.tsx`, behind one branch in `settings-panel/controls/combined.tsx`; and the CLI's copy of their build into every published site, `packages/cli/src/organizeos-components.ts`, called from short hooks in `prebuild.ts` and `framework-react-router.ts`), and the forced CLI route-template patches for the reverse-proxy host/auth/cache. Avoid deep edits to shared component `.tsx`; isolate OrganizeOS code so `upstream main` can be merged with minimal conflict.
+Changes confined to: env/config, the proprietary-package removal (this doc §2), auth/SSO + provisioning files (`services/auth-strategy/organizeos*`, `routes/internal.*`, `shared/db/provision.server.ts`, `shared/db/organizeos-*.server.ts`, and the data presets `shared/db/resource-presets.server.ts` and `shared/db/signup-form-preset.server.tsx`, whose ids `shared/organizeos-preset-ids.ts` derives for the server and the browser alike), the publish seam (`services/organizeos-publisher.server.ts`, `shared/db/publish-status.server.ts`, `publish-site.yml`), asset serving (`shared/asset-response.server.ts`, the three `routes/cgi.*` loaders, `asset-uploader`'s S3 client), branding (`shared/branding.ts`, `shared/organizeos-logo.tsx`), the OrganizeOS-only chrome behind `$organizeosSite` (`features/publish/organizeos-publish*.ts*`, small branches in `menu.tsx`, `topbar.tsx`, `publish.tsx`), the OrganizeOS blocks (§9: the `packages/sdk-components-organizeos` package, `@organizeos/site-components`, a `workspace:*` dependency in `apps/builder/package.json` and `packages/cli/package.json`, and so in `pnpm-lock.yaml`, registered by one `registerComponentLibrary` call in `canvas/canvas.tsx`; their panel, `features/organizeos-panel/*`, with its tab in `sidebar-left/sidebar-left.tsx` and `sidebar-left/types.ts` and one branch in the canvas's drop handler, `canvas/shared/use-drag-drop.ts`, so a dropped block is bound to the project's data like a clicked one; their record picker, `settings-panel/controls/organizeos-record.tsx`, behind one branch in `settings-panel/controls/combined.tsx`; and the CLI's copy of their build into every published site, `packages/cli/src/organizeos-components.ts`, called from short hooks in `prebuild.ts` and `framework-react-router.ts`, with cases in `prebuild.test.ts`), the guards' wiring (the `check:*` scripts and `checks` in the root `package.json`, and `.github/workflows/main.yml`, both of which also build the blocks' package before the tests), and the forced CLI route-template patches for the reverse-proxy host/auth/cache. Avoid deep edits to shared component `.tsx`; isolate OrganizeOS code so `upstream main` can be merged with minimal conflict.
 
 ## 8. Published-site route template patches
 
@@ -216,3 +216,192 @@ builder's, and it cannot fetch this deployment's `/assets/*`, so every
 optimized URL failed with `INVALID_IMAGE_OPTIMIZE_REQUEST`. Real image
 optimization is a later item to design with the OrganizeOS side. Keep the
 patch on upstream merges.
+
+## 9. OrganizeOS components
+
+Blocks for OrganizeOS's platform features: a block is a root and parts that a
+designer places and styles like any element, while what it does (validation,
+opt-in, tags) stays on the platform, in services Website Lite shares. Phase 1
+ships the Signup Form. Design and plan are in the OrganizeOS repo
+(`docs/superpowers/specs/2026-10-01-website-builder-platform-components-design.md`,
+`docs/superpowers/plans/2026-10-02-website-builder-signup-form.md`); its
+`docs/features/website-builder-components.md` covers both halves.
+
+**The package**, `packages/sdk-components-organizeos`, npm name
+`@organizeos/site-components`:
+
+- `private`, never published to npm, AGPL-3.0-or-later like the rest of the
+  fork (its own `LICENSE`). Shaped like `sdk-components-react-radix`:
+  components, metas, templates and an empty hooks list, the `webstudio` export
+  condition to `src/`, `lib/` otherwise, built with
+  `vite.sdk-components.config.ts`.
+- **Signup Form** is the root: it renders the `<form>`, finds its form by its
+  `record` prop in its `data` prop (with no `record`, the org defaults: email
+  required; first name, last name and phone optional), and on a published page
+  posts what its parts collect. Its parts are **Submit Button** and **Field**,
+  which names a form field and wires its **Field Label**, **Field Input** and
+  **Field Message** together. `src/form/` holds what later families share: part
+  registration, the submit helper, the canvas check.
+- Every meta is `category: "hidden"`, so the Components panel never lists the
+  blocks. The **Signup Form template** binds the root's `state` to a
+  `formState` variable, shows its state boxes with `ws:show`, styles the parts
+  through the tokens "OS Field", "OS Input", "OS Button" and "OS Message", and
+  leaves `data` unbound for the panel.
+- The canvas and the preview never post. On the canvas a root draws a warning
+  on itself for a missing part (an email Field, a Submit Button, a Field for a
+  required form field), a Field naming a field its form lacks, a form inside
+  another form, and a picked form that is unavailable.
+- **Registered** by one `registerComponentLibrary` call in `canvas/canvas.tsx`
+  under the namespace `@organizeos/site-components`, so the components are
+  `@organizeos/site-components:SignupForm` and so on. Every build that uses a
+  block records that name in `Instance.component`: the namespace can never
+  change.
+
+**The panel**, `apps/builder/app/builder/features/organizeos-panel/`:
+
+- A left-sidebar tab after Components, with the OrganizeOS mark, hidden in
+  content mode and disabled on text pages, as Components is. It lists the
+  namespace's templates in sections (Phase 1: Signups) with the Components
+  panel's cards and drag.
+- Signups ends with a link to the org's Embeds hub,
+  `<platform URL>/<subdomain>/pages/embeds`, where the org makes its forms (the
+  Website area's URL while the builder does not know the subdomain; the
+  platform home for a project no org owns). The builder depends on that
+  platform route; the OrganizeOS side lists it under "Contract with the fork".
+- **Insert completion**, `insert-organizeos-block.ts`. A clicked block and a
+  dropped one both go through it: the canvas's drop handler
+  (`canvas/shared/use-drag-drop.ts`) has one marked branch for the namespace.
+
+  1. Find the Events preset by its deterministic id, never by name. If it is
+     missing or has no non-blank `Authorization` header, refuse with a toast
+     ("this site's link to your organization's data was removed or changed.
+     Contact OrganizeOS support to restore it.") and write nothing. The same
+     refusal applies when Forms must be created and the Events URL is not the
+     `"<API base>/events"` literal provisioning writes.
+  2. Find or create the Forms preset by the ids provisioning gives it, in
+     provisioning's shape: a Resource and a resource DataSource named
+     "OrganizeOS Forms", the DataSource scoped at `:root`, the Events URL with
+     `/forms` for `/events`, and the Events `Authorization` header. A Forms
+     binding found with no scope gets `:root`; nothing else about an existing
+     preset is rewritten.
+  3. Bind the root's `data` by id to the preset's `.data`, the `{ data: [...] }`
+     body of `GET /v1/forms`, so no variable that shares a name with the preset
+     captures it at insert (copies are another matter: see the known limits).
+  4. Insert with `insertWebstudioFragmentAt`.
+
+  Step 2 and the insert are separate transactions, so when step 2 adds the
+  preset they are two undo steps: one undo removes the block and keeps the
+  preset, which a later re-provision rewrites in place. The preset also stays
+  when its blocks are deleted, and a site that has it pays for it on every
+  page view (see the rollout gate below). The target is resolved first, so a
+  block with no place to go adds no preset.
+
+- **Preset ids**: `apps/builder/app/shared/organizeos-preset-ids.ts`, one
+  WebCrypto `uuidV5` that the server and the browser share, pinned by tests to
+  the ids the replaced `node:crypto` code produced. Provisioning and the panel
+  derive the same ids, so a re-provision rewrites the panel's preset instead of
+  adding a second.
+- **Forms in provisioning** (`shared/db/resource-presets.server.ts`): Events,
+  Fundraisers and Stats are seeded on every provision, unscoped; Forms only
+  when present. A provision rewrites both Forms records whole (scope, URL and
+  token) in a build that has its binding or its resource, and never adds it to
+  one that has neither: the panel creates it on the first Signup Form insert,
+  because a `:root` resource costs every page view a call. That mode is
+  temporary for Forms if the spec's starter signup page (decision 8) is
+  adopted.
+
+**The record picker**, `settings-panel/controls/organizeos-record.tsx`, behind
+one marked branch in `settings-panel/controls/combined.tsx`, before the text
+control. The Signup Form's `record` is a select:
+
+- "None (org defaults)" first (an empty `record`), then the forms the block
+  takes, as "name (Newsletter)" or "name (Contact)": newsletter
+  (`contact-signup`) and contact (`contact-form`) forms, never membership
+  forms.
+- It reads the selected root's computed `data`, which the builder's resources
+  loader already fetches for a `:root` preset, and makes no request of its own.
+- A value it cannot find stays listed as "Unavailable form". With no forms data
+  (loading, unbound, or the loader's error body) a hint says to reload the
+  builder, then to contact support.
+- It keeps the upstream select's binding support. A `record` prop on any other
+  component keeps the text control.
+
+**Shipping in published sites**, `packages/cli/src/organizeos-components.ts`:
+
+- A site never installs the package. Prebuild clears `app/__organizeos__/`
+  with `app/__generated__/` and `app/routes/`, then copies the built
+  `components.js` and every module it reaches through relative imports (static,
+  re-exported and literal dynamic, parsed with acorn) into
+  `app/__organizeos__/`. That closure never reaches `metas.js` or
+  `templates.js`.
+- The react-router framework maps each component of the namespace to
+  `../__organizeos__/components.js:<Name>`, a path from `app/__generated__/`,
+  where page modules are written, and adds the metas. Remix and vike-ssg are
+  not mapped: the publish workflow builds with the react-router templates, and
+  the publisher refuses static exports.
+- The copy may import only packages the react-router site template already
+  depends on (today `react`, `react/jsx-runtime` and
+  `@webstudio-is/react-sdk/runtime`), which resolve to the site's own pinned
+  copies; `organizeos-components.test.ts` fails on any other.
+- The CLI finds the build through
+  `import.meta.resolve("@organizeos/site-components/components")`, and a
+  missing build fails prebuild with the command that makes it. CI and
+  `pnpm checks` build the package before the tests; the publish workflow
+  builds every package before it runs the CLI.
+- A published site freezes the component code: a fix reaches an org's
+  visitors when the org republishes.
+- CI note: `packages/cli/src/asset-files.test.ts` ("removes temporary files
+  when asset download fails") is an upstream test that fails about one run in
+  five, from a race between its temp-file cleanup and the write stream
+  opening. It predates this package and is left to upstream; rerun the job.
+
+**The platform contract the blocks rely on:**
+
+- `POST /api/public/site/v1/signups`, same origin from the published page
+  (every org host reserves `/api` for OrganizeOS): JSON only, no CORS, the org
+  taken from the request's host, never the body. The body is
+  `{ form_id?, fields, page_path, website }` (`website` is the honeypot); the
+  answer is `{ outcome }` (`subscribed`, `confirm_email` or `received`) or
+  `{ error, field? }`. The block maps an outcome it does not know to Success
+  and any error to Error, so a frozen build survives new answers.
+- `GET /v1/forms`, through the Forms preset, server-side with the project's
+  read token.
+- The Embeds hub route the panel links to.
+- Both sides build to the contract fixtures in OrganizeOS's
+  `client/tests/fixtures/site-components/`, which the package copies into
+  `src/__fixtures__/` for its tests. To keep them in step, change the
+  OrganizeOS copy first, copy the files over unchanged, update the source
+  commit in the note at the top of the copy's `README.md`, and check that
+  `diff -r` between the two folders shows that note alone. A change is
+  additive or ships under a new endpoint version: a published site keeps
+  calling what it was built against.
+
+**Deploy order** for this feature: OrganizeOS first, then the builder. That
+reverses the usual order (§5, and the OrganizeOS contract table: the builder
+first, so a new optional field is accepted before it is sent). Here the
+platform half adds new endpoints that nothing calls until the builder half
+ships, while a block inserted before they exist can neither load its forms nor
+submit.
+
+**Known limits** (OrganizeOS spec, section 12, items 15 to 18, with the
+options):
+
+- **Rollout gate.** The Forms preset is `:root`, so every page view of a site
+  that has it makes one uncached `GET /v1/forms` call. The "/v1 edge cache"
+  that `html.tsx`'s `no-store` relies on does not exist: Vercel's CDN never
+  caches a request with an `Authorization` header. The ceiling is the
+  platform's `public_read` limit, 120 a minute per org and site egress IP, and
+  on a 429 a block with a form picked shows Unavailable. The block is not
+  offered beyond the pilot org until the `/v1` cache or a token-keyed loader
+  limit lands.
+- The data presets never loaded before Forms was scoped: provisioning wrote
+  them unscoped, and the builder and the CLI load only a page's or `:root`
+  data sources. Events, Fundraisers and Stats are still unscoped, pending an
+  owner decision.
+- Copies rebind by name. Upstream re-resolves expressions by variable name when
+  a block is duplicated, copied, pasted or moved, and when an admin saves a
+  variable in an enclosing scope (`rebindTreeVariablesMutable`), so a variable
+  named exactly "OrganizeOS Forms" in a block's scope can take over its `data`.
+  Insert binds by id; the re-resolution is upstream behavior, left alone.
+- No self-serve "Reconnect data": once the builder is enabled, nothing re-seeds
+  a project's presets, so a refused insert needs support to re-provision.
