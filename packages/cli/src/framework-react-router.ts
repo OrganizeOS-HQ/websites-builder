@@ -4,7 +4,12 @@ import type { WsComponentMeta } from "@webstudio-is/sdk";
 import { generateRemixRoute } from "@webstudio-is/react-sdk";
 import * as baseComponentMetas from "@webstudio-is/sdk-components-react/metas";
 import * as radixComponentMetas from "@webstudio-is/sdk-components-react-radix/metas";
+import * as organizeosComponentMetas from "@organizeos/site-components/metas";
 import type { Framework } from "./framework";
+import {
+  ORGANIZEOS_COMPONENTS_IMPORT,
+  ORGANIZEOS_NAMESPACE,
+} from "./organizeos-components";
 
 export const createFramework = async (): Promise<Framework> => {
   const routeTemplatesDir = join("app", "route-templates");
@@ -43,6 +48,13 @@ export const createFramework = async (): Promise<Framework> => {
   for (const [name, meta] of Object.entries(radixComponentMetas)) {
     components[`${reactRadix}:${name}`] = `${reactRadix}:${name}`;
     metas[`${reactRadix}:${name}`] = meta;
+  }
+  // OrganizeOS fork: the OrganizeOS blocks import from the copy prebuild makes
+  // in the site (organizeos-components.ts).
+  for (const [name, meta] of Object.entries(organizeosComponentMetas)) {
+    components[`${ORGANIZEOS_NAMESPACE}:${name}`] =
+      `${ORGANIZEOS_COMPONENTS_IMPORT}:${name}`;
+    metas[`${ORGANIZEOS_NAMESPACE}:${name}`] = meta;
   }
 
   return {

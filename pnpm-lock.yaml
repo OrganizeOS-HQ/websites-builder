@@ -1116,6 +1116,9 @@ importers:
       '@emotion/hash':
         specifier: ^0.9.2
         version: 0.9.2
+      '@organizeos/site-components':
+        specifier: workspace:*
+        version: link:../sdk-components-organizeos
       '@trpc/client':
         specifier: ^10.45.2
         version: 10.45.2(@trpc/server@10.45.2)

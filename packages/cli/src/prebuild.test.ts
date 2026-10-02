@@ -7,10 +7,34 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { tmpdir } from "node:os";
 import { bundleVersion } from "@webstudio-is/protocol";
 import { generateRedirectsModule, prebuild } from "./prebuild";
+import {
+  findModuleClosure,
+  resolveOrganizeosComponentsModule,
+} from "./organizeos-components";
+
+// OrganizeOS fork: Vitest's module runner has no import.meta.resolve, and it
+// resolves @organizeos/site-components with the webstudio condition, to the
+// package's source. Hand the CLI that source: it finds the package's build
+// from there, as it does when it runs from source (organizeos-components.ts).
+vi.mock("./organizeos-components", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./organizeos-components")>();
+  return {
+    ...actual,
+    resolveOrganizeosComponentsModule: () =>
+      actual.resolveOrganizeosComponentsModule(
+        () =>
+          new URL(
+            "../../sdk-components-organizeos/src/components.ts",
+            import.meta.url
+          ).href
+      ),
+  };
+});
 
 const originalCwd = process.cwd();
 const originalFetch = globalThis.fetch;
@@ -338,6 +362,82 @@ describe("prebuild", () => {
     await expect(
       readFile("app/__generated__/$resources.redirects.ts", "utf8")
     ).resolves.toContain("/dl.php?filename=file.pdf");
+  });
+
+  // OrganizeOS fork: the OrganizeOS blocks ship inside the site as a copy of
+  // their build (organizeos-components.ts).
+  const organizeosDir = join("app", "__organizeos__");
+
+  const expectCopyToBeTheClosure = async () => {
+    const entryPath = resolveOrganizeosComponentsModule();
+    const { modules } = await findModuleClosure(entryPath);
+    const copied = await getFilePaths(organizeosDir);
+    expect(copied.map((path) => relative(organizeosDir, path)).sort()).toEqual(
+      modules.map((path) => relative(dirname(entryPath), path)).sort()
+    );
+  };
+
+  test("imports the OrganizeOS blocks from the copy of their build", async () => {
+    await writeSiteData(
+      createSiteData({
+        instances: [
+          [
+            "root",
+            {
+              id: "root",
+              component: "Box",
+              children: [{ type: "id", value: "signup" }],
+            },
+          ],
+          [
+            "signup",
+            {
+              id: "signup",
+              component: "@organizeos/site-components:SignupForm",
+              children: [],
+            },
+          ],
+        ],
+      })
+    );
+
+    await prebuild({
+      assets: false,
+      template: ["react-router", "react-router-vercel"],
+    });
+
+    // The page module sits in app/__generated__/ and imports the block by a
+    // path relative to that folder, which reaches the copy.
+    const pagePath = join("app", "__generated__", "_index.tsx");
+    const page = await readFile(pagePath, "utf8");
+    const importSource = page.match(
+      /import \{ SignupForm as \w+ \} from "([^"]+)";/
+    )?.[1];
+    expect(importSource).toBe("../__organizeos__/components.js");
+    await expect(
+      readFile(join(dirname(pagePath), importSource as string), "utf8")
+    ).resolves.toEqual(
+      await readFile(resolveOrganizeosComponentsModule(), "utf8")
+    );
+    // Everything the copy imports came with it, and nothing else did.
+    await expectCopyToBeTheClosure();
+  });
+
+  test("a second prebuild in the same folder leaves no stale file in the OrganizeOS copy", async () => {
+    await prebuild({
+      assets: false,
+      template: ["react-router", "react-router-vercel"],
+    });
+    await writeFile(join(organizeosDir, "stale.js"), "stale", "utf8");
+    await mkdir(join(organizeosDir, "removed"), { recursive: true });
+    await writeFile(join(organizeosDir, "removed", "part.js"), "stale", "utf8");
+
+    await prebuild({
+      assets: false,
+      template: ["react-router", "react-router-vercel"],
+    });
+
+    await expectCopyToBeTheClosure();
   });
 
   test("selects ssg templates and skips dynamic routes", async () => {

@@ -56,6 +56,11 @@ jobs:
       - name: Runtime packages byte-identical to upstream
         run: pnpm check:runtime-upstream
 
+      - name: Build the OrganizeOS site components
+        # The CLI tests copy this package's build into a generated site, as the
+        # publish executor does (packages/cli/src/organizeos-components.ts).
+        run: pnpm --filter ./packages/sdk-components-organizeos build
+
       - name: Test
         run: pnpm -r test
 
