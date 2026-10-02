@@ -5,12 +5,17 @@ import {
   type Prop,
   type Resource,
   type Resources,
+  type WebstudioData,
   type WebstudioFragment,
+  ROOT_INSTANCE_ID,
   encodeDataSourceVariable,
 } from "@webstudio-is/sdk";
 import { builderApi } from "~/shared/builder-api";
 import { platformName } from "~/shared/branding";
-import { getResourcePresetIds } from "~/shared/organizeos-preset-ids";
+import {
+  FORMS_PRESET_NAME,
+  getResourcePresetIds,
+} from "~/shared/organizeos-preset-ids";
 import { $dataSources, $project, $resources } from "~/shared/sync/data-stores";
 import { updateWebstudioData } from "~/shared/instance-utils/data";
 import {
@@ -28,6 +33,10 @@ import { getInstanceLabel } from "~/builder/shared/instance-label";
  * the preset is added when the project lacks it, from the Events preset that
  * provisioning wrote. Click (the OrganizeOS panel) and drop (the canvas's
  * drag and drop) both insert through here.
+ *
+ * The Forms preset's DataSource is scoped at `:root`: Webstudio loads a data
+ * source, in the builder and on a published page, only when its scope is on
+ * the page or is `:root`, so an unscoped one never loads.
  */
 
 /** The namespace the blocks are registered under (canvas.tsx). */
@@ -38,9 +47,6 @@ export const isOrganizeosBlock = (component: string) =>
 
 // Blocks whose root reads the org's published forms through its `data` prop.
 const formsBlocks = new Set([`${organizeosNamespace}:SignupForm`]);
-
-// Provisioning names each preset after its endpoint (resource-presets.server.ts).
-const formsPresetLabel = "Forms";
 
 type PresetIds = { resourceId: string; bindingId: string };
 
@@ -98,6 +104,9 @@ export type OrganizeosBlockCompletion =
       // What the project lacks of the Forms preset, to write before inserting.
       resources: Resource[];
       dataSources: DataSource[];
+      // The Forms preset's binding, for a block that reads it: the insert
+      // scopes it at `:root` if a writer left it unscoped.
+      formsBindingId?: DataSource["id"];
     };
 
 /**
@@ -127,7 +136,7 @@ export const completeOrganizeosFragment = ({
   // The Events preset, found by its id and never by name, is the project's
   // link to the org's data: its API base and its read token. Without it, or
   // without the token, a Forms preset could not authenticate, so nothing is
-  // written and the admin is told how to reconnect.
+  // written and the admin is told who can restore it.
   const events = resources.get(presetIds.events.resourceId);
   const authorization =
     events === undefined ? undefined : findAuthorizationHeader(events);
@@ -146,7 +155,8 @@ export const completeOrganizeosFragment = ({
     newDataSources.push({
       type: "resource",
       id: forms.bindingId,
-      name: formsPresetLabel,
+      scopeInstanceId: ROOT_INSTANCE_ID,
+      name: FORMS_PRESET_NAME,
       resourceId: forms.resourceId,
     });
   }
@@ -160,7 +170,7 @@ export const completeOrganizeosFragment = ({
     }
     newResources.push({
       id: forms.resourceId,
-      name: formsPresetLabel,
+      name: FORMS_PRESET_NAME,
       method: "get",
       url,
       headers: [{ name: "Authorization", value: authorization.value }],
@@ -169,7 +179,7 @@ export const completeOrganizeosFragment = ({
 
   // Bind the root's `data` to the preset's variable by id. Inserting resolves
   // a fragment's names against the variables in scope where it lands, so a
-  // name would bind to whatever variable an admin happened to call "Forms".
+  // name would bind to whatever variable there happened to carry it.
   // `.data` is the response body, `{ data: [...] }` from GET /v1/forms, not
   // the whole resource result `{ ok, status, statusText, data }`.
   const dataProp: Prop = {
@@ -192,7 +202,40 @@ export const completeOrganizeosFragment = ({
     },
     resources: newResources,
     dataSources: newDataSources,
+    formsBindingId: forms.bindingId,
   };
+};
+
+/**
+ * Write a completion's preset records into a transaction's data. Decided
+ * against that data, not the completion's snapshot of the stores: records
+ * that appeared meanwhile are kept (the ids are the preset's, never a copy),
+ * and a Forms binding with no scope, as provisioning and this panel wrote it
+ * before the preset was scoped, gets `:root`. Nothing else about an existing
+ * preset is rewritten.
+ */
+const writeOrganizeosPresetsMutable = (
+  data: Pick<WebstudioData, "resources" | "dataSources">,
+  completion: Extract<OrganizeosBlockCompletion, { status: "ready" }>
+) => {
+  for (const resource of completion.resources) {
+    if (data.resources.has(resource.id) === false) {
+      data.resources.set(resource.id, resource);
+    }
+  }
+  for (const dataSource of completion.dataSources) {
+    if (data.dataSources.has(dataSource.id) === false) {
+      data.dataSources.set(dataSource.id, dataSource);
+    }
+  }
+  const { formsBindingId } = completion;
+  const binding =
+    formsBindingId === undefined
+      ? undefined
+      : data.dataSources.get(formsBindingId);
+  if (binding !== undefined && binding.scopeInstanceId === undefined) {
+    binding.scopeInstanceId = ROOT_INSTANCE_ID;
+  }
 };
 
 /**
@@ -225,8 +268,10 @@ export const insertOrganizeosBlock = async (
     dataSources: $dataSources.get(),
   });
   if (completion.status === "refused") {
+    // Opening the builder re-syncs membership only, and nothing in the
+    // Website area re-provisions an enabled builder, so support restores it.
     builderApi.toast.error(
-      `Cannot add ${label}: this site is not connected to your organization's data. Open the builder again from your Website area in ${platformName} to reconnect your data.`
+      `Cannot add ${label}: this site's link to your organization's data was removed or changed. Contact ${platformName} support to restore it.`
     );
     return false;
   }
@@ -238,22 +283,12 @@ export const insertOrganizeosBlock = async (
   if (target === undefined) {
     return false;
   }
-  if (completion.resources.length > 0 || completion.dataSources.length > 0) {
-    // Through the same transactions as any edit, so it syncs and undoes like
-    // one; its own, because the insert below opens another. Records that
-    // appeared meanwhile are kept: the ids are the preset's, never a copy.
-    updateWebstudioData((data) => {
-      for (const resource of completion.resources) {
-        if (data.resources.has(resource.id) === false) {
-          data.resources.set(resource.id, resource);
-        }
-      }
-      for (const dataSource of completion.dataSources) {
-        if (data.dataSources.has(dataSource.id) === false) {
-          data.dataSources.set(dataSource.id, dataSource);
-        }
-      }
-    });
-  }
+  // Through the same transactions as any edit, so it syncs and undoes like
+  // one; its own, because the insert below opens another. It runs for every
+  // block, since what it writes is decided inside it; a transaction that
+  // changes nothing leaves no undo step.
+  updateWebstudioData((data) => {
+    writeOrganizeosPresetsMutable(data, completion);
+  });
   return insertWebstudioFragmentAt(completion.fragment, target);
 };

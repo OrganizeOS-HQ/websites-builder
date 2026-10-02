@@ -10,6 +10,7 @@ import {
 import { dirname, join, relative } from "node:path";
 import { tmpdir } from "node:os";
 import { bundleVersion } from "@webstudio-is/protocol";
+import { encodeDataSourceVariable } from "@webstudio-is/sdk";
 import { generateRedirectsModule, prebuild } from "./prebuild";
 import {
   findModuleClosure,
@@ -83,6 +84,10 @@ const createSiteData = (
     >;
     pageMeta?: Record<string, unknown>;
     redirects?: Redirects;
+    // OrganizeOS fork: the Forms preset cases below set these three.
+    props?: Array<[string, Record<string, unknown>]>;
+    dataSources?: Array<[string, Record<string, unknown>]>;
+    resources?: Array<[string, Record<string, unknown>]>;
   } = {}
 ) => {
   const pages = overrides.pages ?? [
@@ -160,7 +165,7 @@ const createSiteData = (
           },
         ],
       },
-      props: [],
+      props: overrides.props ?? [],
       instances: (
         overrides.instances ?? [
           [
@@ -173,8 +178,8 @@ const createSiteData = (
           ],
         ]
       ).map(([id, instance]) => [id, { type: "instance", ...instance }]),
-      dataSources: [],
-      resources: [],
+      dataSources: overrides.dataSources ?? [],
+      resources: overrides.resources ?? [],
       styleSources: [],
       styleSourceSelections: [],
       styles: [],
@@ -438,6 +443,115 @@ describe("prebuild", () => {
     });
 
     await expectCopyToBeTheClosure();
+  });
+
+  // OrganizeOS fork: a page loads a data source only when its scope is on the
+  // page or is :root, so the Forms preset, as the builder writes it, is
+  // scoped at :root.
+  describe("compiles a Signup Form's data from the Forms preset", () => {
+    const formsBinding = {
+      type: "resource",
+      id: "forms-binding",
+      name: "OrganizeOS Forms",
+      resourceId: "forms-resource",
+    };
+
+    const writeSignupForm = (binding: Record<string, unknown>) =>
+      writeSiteData(
+        createSiteData({
+          instances: [
+            [
+              "root",
+              {
+                id: "root",
+                component: "Box",
+                children: [{ type: "id", value: "signup" }],
+              },
+            ],
+            [
+              "signup",
+              {
+                id: "signup",
+                component: "@organizeos/site-components:SignupForm",
+                children: [],
+              },
+            ],
+          ],
+          props: [
+            [
+              "signup-data",
+              {
+                id: "signup-data",
+                instanceId: "signup",
+                name: "data",
+                type: "expression",
+                value: `${encodeDataSourceVariable(formsBinding.id)}.data`,
+              },
+            ],
+          ],
+          dataSources: [[formsBinding.id, binding]],
+          resources: [
+            [
+              "forms-resource",
+              {
+                id: "forms-resource",
+                name: "OrganizeOS Forms",
+                method: "get",
+                url: `"https://app.example.org/api/public/v1/forms"`,
+                headers: [
+                  { name: "Authorization", value: `"Bearer osk_test"` },
+                ],
+              },
+            ],
+          ],
+        })
+      );
+
+    const prebuildPage = async () => {
+      await prebuild({
+        assets: false,
+        template: ["react-router", "react-router-vercel"],
+      });
+      const generatedDir = join("app", "__generated__");
+      return {
+        page: await readFile(join(generatedDir, "_index.tsx"), "utf8"),
+        // the page's resources module, which its loader runs on the server
+        resources: await readFile(
+          join(generatedDir, "_index.server.tsx"),
+          "utf8"
+        ),
+      };
+    };
+
+    test("to the Forms resource when the binding is scoped at :root", async () => {
+      await writeSignupForm({ ...formsBinding, scopeInstanceId: ":root" });
+
+      const { page, resources } = await prebuildPage();
+
+      const [, variable, request] =
+        page.match(/let (\w+) = useResource\("(\w+)"\)/) ?? [];
+      expect(variable).toBeDefined();
+      expect(page).toContain(`data={${variable}?.data}`);
+      expect(resources).toContain(`const ${request}: ResourceRequest = {`);
+      expect(resources).toContain(
+        `url: "https://app.example.org/api/public/v1/forms",`
+      );
+      expect(resources).toContain(
+        `{ name: "Authorization", value: "Bearer osk_test" },`
+      );
+      expect(resources).toContain(`["${request}", ${request}],`);
+    });
+
+    test("to undefined when the binding has no scope", async () => {
+      await writeSignupForm(formsBinding);
+
+      const { page, resources } = await prebuildPage();
+
+      expect(page).toContain("data={undefined?.data}");
+      expect(page).not.toContain("useResource(");
+      expect(resources).not.toContain("/v1/forms");
+      expect(resources).not.toContain("OrganizeOS Forms");
+    });
   });
 
   test("selects ssg templates and skips dynamic routes", async () => {

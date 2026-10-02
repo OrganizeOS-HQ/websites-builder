@@ -5,11 +5,22 @@
  * browser, which finds the Events preset and adds the Forms preset at insert
  * time (`builder/features/organizeos-panel`). Both sides must derive the same
  * id from the same name, so a preset the panel adds is the one a later
- * re-provision rewrites in place, never a second copy.
+ * re-provision rewrites in place, never a second copy. The Forms preset's
+ * name lives here too, so that both sides give it the same one.
  *
  * One implementation on WebCrypto (`globalThis.crypto.subtle`), which the
  * browser and Node 22 both provide. It is async because `digest` is.
  */
+
+/**
+ * The name of the Forms preset's Resource and DataSource, in both writers.
+ * The panel binds a block's `data` by id, but Webstudio rebinds expressions by
+ * name when a block is duplicated, copied, pasted or moved, and a same-named
+ * `:root` variable listed after the preset masks its value in the builder's
+ * variable scope. A name an admin is unlikely to reuse narrows both; a
+ * variable with exactly this name can still capture a copy (a known limit).
+ */
+export const FORMS_PRESET_NAME = "OrganizeOS Forms";
 
 // Fixed namespace for preset-derived ids. Do not change: it would orphan the
 // presets already seeded into live projects.
