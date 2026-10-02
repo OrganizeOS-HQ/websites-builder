@@ -1,0 +1,69 @@
+{
+  "name": "@organizeos/site-components",
+  "version": "0.0.0",
+  "description": "OrganizeOS blocks for the Website builder: platform-backed forms made of parts the designer styles",
+  "author": "OrganizeOS LLC",
+  "license": "AGPL-3.0-or-later",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "lib/*",
+    "!*.{test,stories}.*"
+  ],
+  "exports": {
+    ".": {
+      "webstudio": "./src/components.ts",
+      "types": "./lib/types/components.d.ts",
+      "import": "./lib/components.js"
+    },
+    "./components": {
+      "webstudio": "./src/components.ts",
+      "types": "./lib/types/components.d.ts",
+      "import": "./lib/components.js"
+    },
+    "./metas": {
+      "webstudio": "./src/metas.ts",
+      "types": "./lib/types/metas.d.ts",
+      "import": "./lib/metas.js"
+    },
+    "./hooks": {
+      "webstudio": "./src/hooks.ts",
+      "types": "./lib/types/hooks.d.ts",
+      "import": "./lib/hooks.js"
+    },
+    "./templates": {
+      "webstudio": "./src/templates.ts",
+      "types": "./lib/types/templates.d.ts",
+      "import": "./lib/templates.js"
+    }
+  },
+  "scripts": {
+    "build": "vite build --config ../../vite.sdk-components.config.ts",
+    "dts": "tsc --project tsconfig.dts.json",
+    "test": "vitest run",
+    "typecheck": "tsgo --noEmit"
+  },
+  "peerDependencies": {
+    "@webstudio-is/react-sdk": "workspace:*",
+    "@webstudio-is/sdk": "workspace:*",
+    "react": "18.3.0-canary-14898b6a9-20240318",
+    "react-dom": "18.3.0-canary-14898b6a9-20240318"
+  },
+  "dependencies": {
+    "@webstudio-is/icons": "workspace:*"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.2.0",
+    "@types/react": "^18.2.70",
+    "@types/react-dom": "^18.2.25",
+    "@webstudio-is/react-sdk": "workspace:*",
+    "@webstudio-is/sdk": "workspace:*",
+    "@webstudio-is/template": "workspace:*",
+    "@webstudio-is/tsconfig": "workspace:*",
+    "react": "18.3.0-canary-14898b6a9-20240318",
+    "react-dom": "18.3.0-canary-14898b6a9-20240318",
+    "vitest": "^3.1.2"
+  }
+}

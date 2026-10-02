@@ -2090,6 +2090,46 @@ importers:
         specifier: workspace:^
         version: link:../tsconfig
 
+  packages/sdk-components-organizeos:
+    dependencies:
+      '@webstudio-is/icons':
+        specifier: workspace:*
+        version: link:../icons
+    devDependencies:
+      '@testing-library/dom':
+        specifier: ^10.4.0
+        version: 10.4.0
+      '@testing-library/react':
+        specifier: ^16.2.0
+        version: 16.2.0(@testing-library/dom@10.4.0)(@types/react-dom@18.2.25)(@types/react@18.2.79)(react-dom@18.3.0-canary-14898b6a9-20240318(react@18.3.0-canary-14898b6a9-20240318))(react@18.3.0-canary-14898b6a9-20240318)
+      '@types/react':
+        specifier: ^18.2.70
+        version: 18.2.79
+      '@types/react-dom':
+        specifier: ^18.2.25
+        version: 18.2.25
+      '@webstudio-is/react-sdk':
+        specifier: workspace:*
+        version: link:../react-sdk
+      '@webstudio-is/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@webstudio-is/template':
+        specifier: workspace:*
+        version: link:../template
+      '@webstudio-is/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      react:
+        specifier: 18.3.0-canary-14898b6a9-20240318
+        version: 18.3.0-canary-14898b6a9-20240318
+      react-dom:
+        specifier: 18.3.0-canary-14898b6a9-20240318
+        version: 18.3.0-canary-14898b6a9-20240318(react@18.3.0-canary-14898b6a9-20240318)
+      vitest:
+        specifier: ^3.1.2
+        version: 3.1.2(@types/debug@4.1.12)(@types/node@22.13.10)(@vitest/browser@3.1.2)(jiti@2.4.2)(jsdom@20.0.3)(msw@2.13.2(@types/node@22.13.10)(typescript@5.8.2))(tsx@4.19.3)
+
   packages/sdk-components-react:
     dependencies:
       '@react-aria/utils':
@@ -2632,10 +2672,6 @@ packages:
 
   '@babel/helper-string-parser@7.25.9':
     resolution: {integrity: sha512-4A/SCr/2KLd5jrtOMFzaKjVtAei3+2r/NChoBNoZ3EyP/+GlhoaEGoWOZUmFmoITP7zOJyHIMm+DYRd8o3PvHA==}
-    engines: {node: '>=6.9.0'}
-
-  '@babel/helper-validator-identifier@7.25.7':
-    resolution: {integrity: sha512-AM6TzwYqGChO45oiuPqwL2t20/HdMC1rTPAesnBCgPCSF1x3oN9MVUwQV2iyz4xqWrctwK5RNC8LV22kaQCNYg==}
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-validator-identifier@7.25.9':
@@ -10389,8 +10425,6 @@ snapshots:
 
   '@babel/helper-string-parser@7.25.9': {}
 
-  '@babel/helper-validator-identifier@7.25.7': {}
-
   '@babel/helper-validator-identifier@7.25.9': {}
 
   '@babel/helper-validator-option@7.25.9': {}
@@ -10513,7 +10547,7 @@ snapshots:
   '@babel/types@7.25.7':
     dependencies:
       '@babel/helper-string-parser': 7.25.7
-      '@babel/helper-validator-identifier': 7.25.7
+      '@babel/helper-validator-identifier': 7.25.9
       to-fast-properties: 2.0.0
 
   '@babel/types@7.26.0':
@@ -11870,13 +11904,13 @@ snapshots:
 
   '@radix-ui/number@1.0.1':
     dependencies:
-      '@babel/runtime': 7.22.3
+      '@babel/runtime': 7.25.0
 
   '@radix-ui/number@1.1.1': {}
 
   '@radix-ui/primitive@1.0.1':
     dependencies:
-      '@babel/runtime': 7.22.3
+      '@babel/runtime': 7.25.0
 
   '@radix-ui/primitive@1.1.2': {}
 
@@ -11974,7 +12008,7 @@ snapshots:
 
   '@radix-ui/react-compose-refs@1.0.1(@types/react@18.2.79)(react@18.3.0-canary-14898b6a9-20240318)':
     dependencies:
-      '@babel/runtime': 7.22.3
+      '@babel/runtime': 7.25.0
       react: 18.3.0-canary-14898b6a9-20240318
     optionalDependencies:
       '@types/react': 18.2.79
@@ -12007,7 +12041,7 @@ snapshots:
 
   '@radix-ui/react-context@1.0.1(@types/react@18.2.79)(react@18.3.0-canary-14898b6a9-20240318)':
     dependencies:
-      '@babel/runtime': 7.22.3
+      '@babel/runtime': 7.25.0
       react: 18.3.0-canary-14898b6a9-20240318
     optionalDependencies:
       '@types/react': 18.2.79
@@ -12042,7 +12076,7 @@ snapshots:
 
   '@radix-ui/react-direction@1.0.1(@types/react@18.2.79)(react@18.3.0-canary-14898b6a9-20240318)':
     dependencies:
-      '@babel/runtime': 7.22.3
+      '@babel/runtime': 7.25.0
       react: 18.3.0-canary-14898b6a9-20240318
     optionalDependencies:
       '@types/react': 18.2.79
@@ -12222,7 +12256,7 @@ snapshots:
 
   '@radix-ui/react-presence@1.0.1(@types/react-dom@18.2.25)(@types/react@18.2.79)(react-dom@18.3.0-canary-14898b6a9-20240318(react@18.3.0-canary-14898b6a9-20240318))(react@18.3.0-canary-14898b6a9-20240318)':
     dependencies:
-      '@babel/runtime': 7.22.3
+      '@babel/runtime': 7.25.0
       '@radix-ui/react-compose-refs': 1.0.1(@types/react@18.2.79)(react@18.3.0-canary-14898b6a9-20240318)
       '@radix-ui/react-use-layout-effect': 1.0.1(@types/react@18.2.79)(react@18.3.0-canary-14898b6a9-20240318)
       react: 18.3.0-canary-14898b6a9-20240318
@@ -12506,7 +12540,7 @@ snapshots:
 
   '@radix-ui/react-use-callback-ref@1.0.1(@types/react@18.2.79)(react@18.3.0-canary-14898b6a9-20240318)':
     dependencies:
-      '@babel/runtime': 7.22.3
+      '@babel/runtime': 7.25.0
       react: 18.3.0-canary-14898b6a9-20240318
     optionalDependencies:
       '@types/react': 18.2.79
@@ -12548,7 +12582,7 @@ snapshots:
 
   '@radix-ui/react-use-layout-effect@1.0.1(@types/react@18.2.79)(react@18.3.0-canary-14898b6a9-20240318)':
     dependencies:
-      '@babel/runtime': 7.22.3
+      '@babel/runtime': 7.25.0
       react: 18.3.0-canary-14898b6a9-20240318
     optionalDependencies:
       '@types/react': 18.2.79

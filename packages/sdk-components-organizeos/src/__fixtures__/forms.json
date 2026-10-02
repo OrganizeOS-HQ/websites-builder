@@ -1,0 +1,98 @@
+{
+  "data": [
+    {
+      "id": "6f1c2a8e-4b1d-4c3e-9a7f-2d5b8c9e1f30",
+      "kind": "contact-signup",
+      "name": "Newsletter",
+      "fields": [
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "options": null
+        },
+        {
+          "name": "first_name",
+          "label": "First name",
+          "type": "text",
+          "required": false,
+          "options": null
+        },
+        {
+          "name": "last_name",
+          "label": "Last name",
+          "type": "text",
+          "required": false,
+          "options": null
+        },
+        {
+          "name": "volunteer_interest",
+          "label": "I want to volunteer",
+          "type": "checkbox",
+          "required": false,
+          "options": null
+        },
+        {
+          "name": "newsletter_weekly",
+          "label": "Send me the weekly roundup",
+          "type": "checkbox",
+          "required": false,
+          "options": null
+        }
+      ],
+      "opt_in": "double"
+    },
+    {
+      "id": "0b7d4e21-9c3a-4f58-8e16-5a2c7d9b4e03",
+      "kind": "contact-form",
+      "name": "Get in touch",
+      "fields": [
+        {
+          "name": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "options": null
+        },
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "options": null
+        },
+        {
+          "name": "topic",
+          "label": "Topic",
+          "type": "select",
+          "required": false,
+          "options": ["Press", "Volunteering", "Other"]
+        },
+        {
+          "name": "message",
+          "label": "Message",
+          "type": "textarea",
+          "required": true,
+          "options": null
+        }
+      ],
+      "opt_in": "single"
+    },
+    {
+      "id": "c4e8a1f2-7d3b-4a96-b5e0-9f1d2c6a8b47",
+      "kind": "membership",
+      "name": "Join us",
+      "fields": [
+        {
+          "name": "name",
+          "label": "Full name",
+          "type": "text",
+          "required": true,
+          "options": null
+        }
+      ],
+      "opt_in": "single"
+    }
+  ]
+}
