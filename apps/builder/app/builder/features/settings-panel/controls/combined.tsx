@@ -13,6 +13,11 @@ import { TextContent } from "./text-content";
 import { ResourceControl } from "./resource-control";
 import { TagControl } from "./tag-control";
 import { TimeZoneControl } from "./time-zone";
+import { $instances } from "~/shared/sync/data-stores";
+import {
+  OrganizeosRecordControl,
+  isOrganizeosRecordProp,
+} from "./organizeos-record";
 
 export const renderControl = ({
   meta,
@@ -46,6 +51,20 @@ export const renderControl = ({
 
   if (meta.control === "json") {
     return <JsonControl key={key} meta={meta} prop={prop} {...rest} />;
+  }
+
+  // OrganizeOS fork: an OrganizeOS block's record is picked from the org's
+  // records; a record prop on any other component stays a text control.
+  if (
+    meta.control === "text" &&
+    isOrganizeosRecordProp(
+      $instances.get().get(rest.instanceId)?.component,
+      rest.propName
+    )
+  ) {
+    return (
+      <OrganizeosRecordControl key={key} meta={meta} prop={prop} {...rest} />
+    );
   }
 
   if (meta.control === "text") {
