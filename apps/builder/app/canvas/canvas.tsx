@@ -21,6 +21,10 @@ import * as radixComponents from "@webstudio-is/sdk-components-react-radix";
 import * as radixComponentMetas from "@webstudio-is/sdk-components-react-radix/metas";
 import * as radixTemplates from "@webstudio-is/sdk-components-react-radix/templates";
 import { hooks as radixComponentHooks } from "@webstudio-is/sdk-components-react-radix/hooks";
+import * as organizeosComponents from "@organizeos/site-components";
+import * as organizeosComponentMetas from "@organizeos/site-components/metas";
+import * as organizeosTemplates from "@organizeos/site-components/templates";
+import { hooks as organizeosComponentHooks } from "@organizeos/site-components/hooks";
 import { ErrorMessage } from "~/shared/error";
 import { $publisher, publish } from "~/shared/pubsub";
 import {
@@ -283,6 +287,16 @@ export const Canvas = () => {
       metas: radixComponentMetas,
       hooks: radixComponentHooks,
       templates: radixTemplates,
+    });
+    // OrganizeOS fork: the OrganizeOS blocks (packages/sdk-components-organizeos).
+    // Their metas are hidden, so the Components panel skips them. Every build
+    // that uses a block records this namespace, so it can never change.
+    registerComponentLibrary({
+      namespace: "@organizeos/site-components",
+      components: organizeosComponents,
+      metas: organizeosComponentMetas,
+      hooks: organizeosComponentHooks,
+      templates: organizeosTemplates,
     });
   });
 
