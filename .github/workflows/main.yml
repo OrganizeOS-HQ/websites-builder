@@ -29,6 +29,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: check:runtime-upstream diffs against the upstream base
+          # commit (scripts/upstream-base.txt), which a shallow clone lacks.
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -48,6 +52,9 @@ jobs:
 
       - name: No proprietary code (AGPL-only fork)
         run: pnpm check:no-proprietary
+
+      - name: Runtime packages byte-identical to upstream
+        run: pnpm check:runtime-upstream
 
       - name: Test
         run: pnpm -r test

@@ -15,9 +15,10 @@
  *
  * It must be the upstream release matching the fork's upstream base: the first
  * release AFTER the base commit, at its latest patch (base 2026-06-24 -> the
- * 0.274 line -> 0.274.5). Bump it in the same change as any upstream merge. A
- * stale value does not fail here; it fails on the next publish, in Vercel's
- * build log, after the site has already been built and uploaded.
+ * 0.274 line -> 0.274.5). Bump it in the same change as any upstream merge,
+ * together with the base commit in scripts/upstream-base.txt. A stale value
+ * does not fail here; it fails on the next publish, in Vercel's build log,
+ * after the site has already been built and uploaded.
  */
 export const PUBLISHED_RUNTIME_VERSION = "0.274.5";
 
