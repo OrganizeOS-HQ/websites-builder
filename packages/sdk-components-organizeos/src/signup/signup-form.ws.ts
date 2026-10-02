@@ -40,7 +40,7 @@ export const meta: WsComponentMeta = {
       required: false,
       label: "Forms data",
       description:
-        "The organization's published forms (the project's Forms data), where the block finds its form.",
+        "The organization's published forms (the project's Forms data), where the block finds the form it submits to. Not read with the org defaults.",
     },
     state: {
       type: "string",

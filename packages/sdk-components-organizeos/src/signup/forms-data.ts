@@ -109,8 +109,9 @@ export type SignupFormResolution = {
   /** The fields the block collects, undefined when its form is unknown. */
   fields: readonly FormFieldConfig[] | undefined;
   /**
-   * Why the block cannot submit, undefined when it can:
-   * - "data": the Forms data is missing or malformed;
+   * Why the block cannot submit, undefined when it can. Only a picked form
+   * can be unavailable:
+   * - "data": a form is picked and the Forms data is missing or malformed;
    * - "record": the picked form is not in it (unpublished, deleted, or a form
    *   the platform does not offer here);
    * - "kind": the picked form is a membership form, which the signups endpoint
@@ -124,18 +125,20 @@ export const resolveSignupForm = (
   record: unknown,
   data: unknown
 ): SignupFormResolution => {
-  const forms = parseFormsData(data);
   const formId =
     typeof record === "string" && record.trim() !== ""
       ? record.trim()
       : undefined;
+  // With no form picked, the Forms data is not read at all: the org defaults
+  // need nothing from it, and the endpoint resolves the org from the host.
   if (formId === undefined) {
     return {
       formId: undefined,
       fields: orgDefaultFields,
-      unavailable: forms === undefined ? "data" : undefined,
+      unavailable: undefined,
     };
   }
+  const forms = parseFormsData(data);
   if (forms === undefined) {
     return { formId, fields: undefined, unavailable: "data" };
   }

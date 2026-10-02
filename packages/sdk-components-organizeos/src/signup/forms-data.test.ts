@@ -57,9 +57,20 @@ test("a membership form is unavailable to a Signup Form", () => {
   expect(resolveSignupForm(membershipForm.id, forms).unavailable).toBe("kind");
 });
 
-test("missing or malformed data is unavailable, record or not", () => {
+test("with no record, data is ignored: missing or malformed data still gives the org defaults", () => {
   for (const data of [undefined, null, "forms", [], {}, { data: {} }]) {
-    expect(resolveSignupForm(undefined, data).unavailable).toBe("data");
+    for (const record of [undefined, ""]) {
+      expect(resolveSignupForm(record, data)).toEqual({
+        formId: undefined,
+        fields: orgDefaultFields,
+        unavailable: undefined,
+      });
+    }
+  }
+});
+
+test("with a record, missing or malformed data is unavailable", () => {
+  for (const data of [undefined, null, "forms", [], {}, { data: {} }]) {
     expect(resolveSignupForm(newsletter.id, data)).toEqual({
       formId: newsletter.id,
       fields: undefined,

@@ -156,7 +156,7 @@ const getProblems = ({
   }
   if (resolution.unavailable === "data") {
     problems.push(
-      "Its Forms data is missing or did not load, so the live site shows the Unavailable state."
+      "Its Forms data is missing or did not load, so its form cannot be found and the live site shows the Unavailable state."
     );
   }
   if (resolution.unavailable === "record") {

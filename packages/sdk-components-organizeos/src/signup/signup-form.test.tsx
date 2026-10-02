@@ -536,11 +536,14 @@ describe("unavailable", () => {
   test.each([
     ["the record is missing from data", { record: missingFormId }],
     ["the record is a membership form", { record: membershipFormId }],
-    ["data is missing", { data: undefined }],
-    ["data is malformed", { data: { data: "forms" } }],
     [
-      "a record is set and data is missing",
-      { record: newsletterId, data: null },
+      "a record is set and data is undefined",
+      { record: newsletterId, data: undefined },
+    ],
+    ["a record is set and data is null", { record: newsletterId, data: null }],
+    [
+      "a record is set and data is malformed",
+      { record: newsletterId, data: { data: "forms" } },
     ],
   ])(
     "when %s: reported on a published site, and nothing posts",
@@ -561,6 +564,37 @@ describe("unavailable", () => {
     }
   );
 
+  test.each([
+    ["undefined", undefined],
+    ["malformed", { data: "forms" }],
+  ])(
+    "with no record, %s data is ignored: the org defaults render and submit",
+    async (_case, data) => {
+      const fetchMock = answerWith(responseSubscribed);
+      const onStateChange = vi.fn();
+      const { container } = render(
+        <Block data={data} onStateChange={onStateChange} />
+      );
+      const email = screen.getByLabelText("Email");
+      expect(email.getAttribute("type")).toBe("email");
+      expect(email.hasAttribute("required")).toBe(true);
+      fill("Email", "ada@example.org");
+      fill("First name", "Ada");
+      fireEvent.submit(getForm(container));
+      await waitFor(() =>
+        expect(onStateChange).toHaveBeenLastCalledWith(
+          "success",
+          expect.any(String)
+        )
+      );
+      expect(sentBody(fetchMock)).toEqual(requestOrgDefaults);
+      expect(onStateChange).not.toHaveBeenCalledWith(
+        "unavailable",
+        expect.any(String)
+      );
+    }
+  );
+
   test("the canvas warns instead, and never reports", () => {
     const onStateChange = vi.fn();
     const { container } = render(
@@ -576,11 +610,21 @@ describe("unavailable", () => {
     expect(onStateChange).not.toHaveBeenCalled();
   });
 
-  test("missing data warns on the canvas", () => {
-    const { container } = render(<Block renderer="canvas" data={undefined} />);
+  test("a record with missing data warns on the canvas", () => {
+    const { container } = render(
+      <Block renderer="canvas" record={newsletterId} data={undefined} />
+    );
     expect(getCanvasCheck(container)?.textContent).toContain(
       "Forms data is missing"
     );
+  });
+
+  test.each([
+    ["undefined", undefined],
+    ["malformed", { data: "forms" }],
+  ])("with no record, %s data draws nothing on the canvas", (_case, data) => {
+    const { container } = render(<Block renderer="canvas" data={data} />);
+    expect(getCanvasCheck(container)).toBeNull();
   });
 });
 
