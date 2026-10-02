@@ -34,6 +34,10 @@ import {
   findClosestRichText,
   isTreeSatisfyingContentModel,
 } from "~/shared/content-model";
+import {
+  insertOrganizeosBlock,
+  isOrganizeosBlock,
+} from "~/builder/features/organizeos-panel/insert-organizeos-block";
 
 declare module "~/shared/pubsub" {
   export interface PubsubMap {
@@ -331,6 +335,10 @@ export const useDragAndDrop = () => {
       if (dragPayload.type === "insert") {
         if (dragPayload.dragComponent === elementComponent) {
           insertWebstudioElementAt(insertable);
+        } else if (isOrganizeosBlock(dragPayload.dragComponent)) {
+          // OrganizeOS fork: a block dropped from the OrganizeOS panel is bound
+          // to the project's data as it is inserted, as a clicked one is.
+          void insertOrganizeosBlock(dragPayload.dragComponent, insertable);
         } else {
           const fragment = getComponentTemplateData(dragPayload.dragComponent);
           if (fragment) {

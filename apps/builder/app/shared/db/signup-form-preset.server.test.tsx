@@ -13,8 +13,8 @@ const args = {
 const build = () => buildSignupFormData(args);
 
 describe("buildSignupFormData", () => {
-  test("renders a Form instance wrapped in a body", () => {
-    const { data, bodyId } = build();
+  test("renders a Form instance wrapped in a body", async () => {
+    const { data, bodyId } = await build();
     const instances = [...data.instances.values()];
     expect(instances.some((i) => i.component === "Form")).toBe(true);
     const body = data.instances.get(bodyId);
@@ -22,8 +22,8 @@ describe("buildSignupFormData", () => {
     expect(body?.tag).toBe("body");
   });
 
-  test("turns the form action into a server-side action resource pointed at /v1/signups", () => {
-    const { data } = build();
+  test("turns the form action into a server-side action resource pointed at /v1/signups", async () => {
+    const { data } = await build();
     const action = [...data.resources.values()].find(
       (r) => r.name === "action"
     );
@@ -37,8 +37,8 @@ describe("buildSignupFormData", () => {
     expect(actionProp?.value).toBe(action?.id);
   });
 
-  test("inlines the org token into the action Authorization header as a literal", () => {
-    const { data } = build();
+  test("inlines the org token into the action Authorization header as a literal", async () => {
+    const { data } = await build();
 
     // No token variable: variables are instance-scoped and page codegen drops
     // out-of-scope ones (publish spike produced "Bearer " + undefined).
@@ -57,8 +57,8 @@ describe("buildSignupFormData", () => {
     expect(action?.headers.some((h) => h.name === "Content-Type")).toBe(true);
   });
 
-  test("uses input names that match the /v1/signups schema keys", () => {
-    const { data } = build();
+  test("uses input names that match the /v1/signups schema keys", async () => {
+    const { data } = await build();
     const inputNames = [...data.props.values()]
       .filter((p) => p.name === "name" && p.type === "string")
       .map((p) => (p.type === "string" ? p.value : ""));
@@ -67,29 +67,29 @@ describe("buildSignupFormData", () => {
     }
   });
 
-  test("wires a formState variable for success/error visibility", () => {
-    const { data } = build();
+  test("wires a formState variable for success/error visibility", async () => {
+    const { data } = await build();
     const formState = [...data.dataSources.values()].find(
       (d) => d.type === "variable" && d.name === "formState"
     );
     expect(formState).toBeDefined();
   });
 
-  test("is deterministic per project and differs across projects", () => {
-    const a1 = build();
-    const a2 = build();
+  test("is deterministic per project and differs across projects", async () => {
+    const a1 = await build();
+    const a2 = await build();
     expect([...a1.data.instances.keys()].sort()).toEqual(
       [...a2.data.instances.keys()].sort()
     );
     expect(a1.bodyId).toBe(a2.bodyId);
 
-    const b = buildSignupFormData({ ...args, projectId: "project-2" });
+    const b = await buildSignupFormData({ ...args, projectId: "project-2" });
     expect(b.bodyId).not.toBe(a1.bodyId);
     expect(b.pageId).not.toBe(a1.pageId);
   });
 
-  test("trims a trailing slash on the API base URL", () => {
-    const { data } = buildSignupFormData({
+  test("trims a trailing slash on the API base URL", async () => {
+    const { data } = await buildSignupFormData({
       ...args,
       apiBaseUrl: "https://app.example.org/api/public/v1/",
     });

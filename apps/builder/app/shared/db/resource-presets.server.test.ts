@@ -13,8 +13,8 @@ describe("buildOrgResourcePresets", () => {
     readToken: "osk_secrettoken",
   };
 
-  test("emits one GET Resource per preset plus bindings", () => {
-    const { dataSources, resources } = buildOrgResourcePresets(args);
+  test("emits one GET Resource per preset plus bindings", async () => {
+    const { dataSources, resources } = await buildOrgResourcePresets(args);
 
     expect(resources).toHaveLength(V1_RESOURCE_PRESETS.length);
     // one resource binding per preset; no variable indirection
@@ -25,8 +25,8 @@ describe("buildOrgResourcePresets", () => {
     }
   });
 
-  test("inlines the token as a literal auth header on every resource", () => {
-    const { dataSources, resources } = buildOrgResourcePresets(args);
+  test("inlines the token as a literal auth header on every resource", async () => {
+    const { dataSources, resources } = await buildOrgResourcePresets(args);
 
     // No variable indirection: variables are instance-scoped and page codegen
     // drops out-of-scope ones, which broke published pages.
@@ -41,8 +41,8 @@ describe("buildOrgResourcePresets", () => {
     }
   });
 
-  test("builds quoted-literal URLs and trims a trailing slash on the base", () => {
-    const { resources } = buildOrgResourcePresets({
+  test("builds quoted-literal URLs and trims a trailing slash on the base", async () => {
+    const { resources } = await buildOrgResourcePresets({
       ...args,
       apiBaseUrl: "https://app.example.org/api/public/v1/",
     });
@@ -52,12 +52,13 @@ describe("buildOrgResourcePresets", () => {
         `"https://app.example.org/api/public/v1/events"`,
         `"https://app.example.org/api/public/v1/fundraisers"`,
         `"https://app.example.org/api/public/v1/stats"`,
+        `"https://app.example.org/api/public/v1/forms"`,
       ].sort()
     );
   });
 
-  test("every resource binding references a real resource id", () => {
-    const { dataSources, resources } = buildOrgResourcePresets(args);
+  test("every resource binding references a real resource id", async () => {
+    const { dataSources, resources } = await buildOrgResourcePresets(args);
     const resourceIds = new Set(resources.map((r) => r.id));
     const bindings = dataSources.filter((s) => s.type === "resource");
     expect(bindings).toHaveLength(V1_RESOURCE_PRESETS.length);
@@ -66,10 +67,13 @@ describe("buildOrgResourcePresets", () => {
     }
   });
 
-  test("ids are deterministic per project and differ across projects", () => {
-    const a1 = buildOrgResourcePresets(args);
-    const a2 = buildOrgResourcePresets(args);
-    const b = buildOrgResourcePresets({ ...args, projectId: "project-2" });
+  test("ids are deterministic per project and differ across projects", async () => {
+    const a1 = await buildOrgResourcePresets(args);
+    const a2 = await buildOrgResourcePresets(args);
+    const b = await buildOrgResourcePresets({
+      ...args,
+      projectId: "project-2",
+    });
 
     expect(a1.resources.map((r) => r.id)).toEqual(
       a2.resources.map((r) => r.id)
@@ -79,6 +83,21 @@ describe("buildOrgResourcePresets", () => {
     );
     // Different project -> different ids (no cross-project collision).
     expect(a1.resources[0].id).not.toBe(b.resources[0].id);
+  });
+
+  test("keeps the ids live projects already carry, and gives Forms the ones the builder panel uses", async () => {
+    const { dataSources, resources } = await buildOrgResourcePresets(args);
+    const events = resources.find((resource) => resource.name === "Events");
+    const forms = resources.find((resource) => resource.name === "Forms");
+    // Derived by the node:crypto implementation this replaced.
+    expect(events?.id).toBe("385fcd4c-92f8-5d7c-abfe-cb941b8f2449");
+    expect(forms?.id).toBe("5bd1e1fb-1480-5d7a-ad4b-75e9cbeec7dd");
+    expect(dataSources.find((source) => source.name === "Forms")).toEqual({
+      type: "resource",
+      id: "fb5d31a4-caab-5681-b150-3a1059d89124",
+      name: "Forms",
+      resourceId: "5bd1e1fb-1480-5d7a-ad4b-75e9cbeec7dd",
+    });
   });
 });
 
@@ -132,7 +151,7 @@ describe("seedProjectResourcePresets", () => {
   });
 
   test("is idempotent: re-seeding replaces presets in place, not duplicating", async () => {
-    const first = buildOrgResourcePresets(args);
+    const first = await buildOrgResourcePresets(args);
     const { context, updates } = makeContext({
       dataSources: JSON.stringify(first.dataSources),
       resources: JSON.stringify(first.resources),
@@ -162,7 +181,7 @@ describe("seedProjectResourcePresets", () => {
       updates[0].dataSources as string
     ) as DataSource[];
     expect(writtenDataSources.some((d) => d.id === "user-var")).toBe(true);
-    // user var + 3 bindings
+    // user var + one binding per preset
     expect(writtenDataSources).toHaveLength(V1_RESOURCE_PRESETS.length + 1);
   });
 

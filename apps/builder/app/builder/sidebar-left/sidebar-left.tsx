@@ -37,6 +37,8 @@ import {
 } from "~/builder/shared/assets/drag-monitor";
 import { getSetting, setSetting } from "~/builder/shared/client-settings";
 import { ComponentsPanel } from "~/builder/features/components";
+import { OrganizeosPanel } from "~/builder/features/organizeos-panel";
+import { OrganizeosIcon } from "~/shared/organizeos-logo";
 import { PagesPanel } from "~/builder/features/pages";
 import { NavigatorPanel } from "~/builder/features/navigator";
 import { AssetsPanel } from "~/builder/features/assets";
@@ -108,6 +110,19 @@ const panels: PanelConfig[] = [
     ),
     Icon: PlusIcon,
     Panel: ComponentsPanel,
+    visibility: {
+      content: false,
+      text: false,
+    },
+  },
+  // OrganizeOS fork: the OrganizeOS blocks (Signup Form and the families after
+  // it) are hidden from Components and listed in a panel of their own, which
+  // binds each to the project's data as it inserts it.
+  {
+    name: "organizeos",
+    label: "OrganizeOS",
+    Icon: OrganizeosIcon,
+    Panel: OrganizeosPanel,
     visibility: {
       content: false,
       text: false,

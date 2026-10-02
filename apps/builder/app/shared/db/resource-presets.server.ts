@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
 import type { DataSource, Resource } from "@webstudio-is/sdk";
 import type { AppContext } from "@webstudio-is/trpc-interface/index.server";
+import { getResourcePresetIds } from "../organizeos-preset-ids";
 
 /**
  * OrganizeOS Websites 2.0 Phase 4d: seed a provisioned org's project with
@@ -21,36 +21,25 @@ import type { AppContext } from "@webstudio-is/trpc-interface/index.server";
  *
  * All ids are derived DETERMINISTICALLY from (projectId, key) so seeding is
  * idempotent: re-provisioning updates the same Resource/variable in place
- * (e.g. rotating the token value) instead of duplicating presets.
+ * (e.g. rotating the token value) instead of duplicating presets. The
+ * derivation lives in shared/organizeos-preset-ids.ts, because the builder's
+ * OrganizeOS panel derives the same ids in the browser: it adds the Forms
+ * preset to a project provisioned before Forms existed, and a re-provision
+ * then rewrites that same preset.
  */
-
-// Fixed namespace for preset-derived ids. Do not change: it would orphan the
-// presets already seeded into live projects.
-const PRESET_NAMESPACE = "3f2a1b7c-8d5e-45a1-9b2c-6e0d1a2b3c4d";
-
-/** RFC 4122 v5 (SHA-1, namespaced) UUID, deterministic per name. */
-const uuidV5 = (name: string): string => {
-  const namespaceBytes = Buffer.from(PRESET_NAMESPACE.replace(/-/g, ""), "hex");
-  const bytes = createHash("sha1")
-    .update(namespaceBytes)
-    .update(Buffer.from(name, "utf8"))
-    .digest()
-    .subarray(0, 16);
-  bytes[6] = (bytes[6] & 0x0f) | 0x50;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = bytes.toString("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
-};
 
 /**
  * The /v1 read endpoints exposed as data-binding presets. These are the frozen
  * public GET DTOs from Phase 1 (see the OrganizeOS ledger repo). Write surfaces
  * (donate/signup form submission) are a separate mechanism and not seeded here.
+ * Forms is the org's published forms, which the OrganizeOS Signup Form block
+ * reads through its `data` prop.
  */
 export const V1_RESOURCE_PRESETS = [
   { key: "events", label: "Events", path: "/events" },
   { key: "fundraisers", label: "Fundraisers", path: "/fundraisers" },
   { key: "stats", label: "Stats", path: "/stats" },
+  { key: "forms", label: "Forms", path: "/forms" },
 ] as const;
 
 export type OrgResourcePresets = {
@@ -60,9 +49,10 @@ export type OrgResourcePresets = {
 
 /**
  * Build the preset Resources + DataSources for an org's project. Pure: returns
- * the objects to merge into a build, touches no I/O.
+ * the objects to merge into a build, touches no I/O (async only because the id
+ * derivation is).
  */
-export const buildOrgResourcePresets = ({
+export const buildOrgResourcePresets = async ({
   projectId,
   apiBaseUrl,
   readToken,
@@ -70,7 +60,7 @@ export const buildOrgResourcePresets = ({
   projectId: string;
   apiBaseUrl: string;
   readToken: string;
-}): OrgResourcePresets => {
+}): Promise<OrgResourcePresets> => {
   const base = apiBaseUrl.replace(/\/+$/, "");
 
   // The token is inlined as a LITERAL header expression, not routed through a
@@ -86,8 +76,10 @@ export const buildOrgResourcePresets = ({
   const dataSources: DataSource[] = [];
 
   for (const preset of V1_RESOURCE_PRESETS) {
-    const resourceId = uuidV5(`${projectId}:v1:${preset.key}:resource`);
-    const bindingId = uuidV5(`${projectId}:v1:${preset.key}:binding`);
+    const { resourceId, bindingId } = await getResourcePresetIds(
+      projectId,
+      preset.key
+    );
 
     resources.push({
       id: resourceId,
@@ -151,7 +143,11 @@ export const seedProjectResourcePresets = async (
     build.data.resources ?? "[]"
   ) as Resource[];
 
-  const presets = buildOrgResourcePresets({ projectId, apiBaseUrl, readToken });
+  const presets = await buildOrgResourcePresets({
+    projectId,
+    apiBaseUrl,
+    readToken,
+  });
 
   const update = await client
     .from("Build")

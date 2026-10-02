@@ -53,8 +53,8 @@ const makeBase = (): BuildContent => ({
 });
 
 describe("mergeSignupFormIntoBuild", () => {
-  test("adds a Sign up page whose root resolves to a seeded body instance", () => {
-    const merged = mergeSignupFormIntoBuild(makeBase(), args);
+  test("adds a Sign up page whose root resolves to a seeded body instance", async () => {
+    const merged = await mergeSignupFormIntoBuild(makeBase(), args);
 
     const signupPage = [...merged.pages.pages.values()].find(
       (p) => p.path === "/signup"
@@ -69,8 +69,8 @@ describe("mergeSignupFormIntoBuild", () => {
     expect(rootInstance?.component).toBe("ws:element");
   });
 
-  test("keeps the existing home page and body intact", () => {
-    const merged = mergeSignupFormIntoBuild(makeBase(), args);
+  test("keeps the existing home page and body intact", async () => {
+    const merged = await mergeSignupFormIntoBuild(makeBase(), args);
     expect(merged.pages.pages.has("home")).toBe(true);
     expect(merged.instances.some((i) => i.id === HOME_BODY)).toBe(true);
     const rootFolder = merged.pages.folders.get("root");
@@ -81,8 +81,8 @@ describe("mergeSignupFormIntoBuild", () => {
     expect(rootFolder?.children).toContain(signupPage!.id);
   });
 
-  test("carries the Form, its action resource, and the token variable into the build", () => {
-    const merged = mergeSignupFormIntoBuild(makeBase(), args);
+  test("carries the Form, its action resource, and the token variable into the build", async () => {
+    const merged = await mergeSignupFormIntoBuild(makeBase(), args);
     expect(merged.instances.some((i) => i.component === "Form")).toBe(true);
     const action = merged.resources.find((r) => r.name === "action");
     expect(action?.url).toBe(`"https://app.example.org/api/public/v1/signups"`);
@@ -99,8 +99,8 @@ describe("mergeSignupFormIntoBuild", () => {
   // REAL load path (parsePages runs migratePages), which is exactly what the
   // builder does when opening the project. If this round-trips, the builder
   // will load the seeded page.
-  test("the merged pages survive the builder's parse/serialize load path", () => {
-    const merged = mergeSignupFormIntoBuild(makeBase(), args);
+  test("the merged pages survive the builder's parse/serialize load path", async () => {
+    const merged = await mergeSignupFormIntoBuild(makeBase(), args);
     const roundTripped = parsePages(serializePages(merged.pages));
     const signup = [...roundTripped.pages.values()].find(
       (p) => p.path === "/signup"
@@ -116,12 +116,12 @@ describe("mergeSignupFormIntoBuild", () => {
     expect(rootFolder?.children).toContain(signup!.id);
   });
 
-  test("is idempotent: re-seeding does not duplicate the page or instances", () => {
-    const once = mergeSignupFormIntoBuild(makeBase(), args);
+  test("is idempotent: re-seeding does not duplicate the page or instances", async () => {
+    const once = await mergeSignupFormIntoBuild(makeBase(), args);
     const instanceCount = once.instances.length;
     const pageCount = once.pages.pages.size;
 
-    const twice = mergeSignupFormIntoBuild(once, args);
+    const twice = await mergeSignupFormIntoBuild(once, args);
     expect(twice.instances.length).toBe(instanceCount);
     expect(twice.pages.pages.size).toBe(pageCount);
     const signupPages = [...twice.pages.pages.values()].filter(

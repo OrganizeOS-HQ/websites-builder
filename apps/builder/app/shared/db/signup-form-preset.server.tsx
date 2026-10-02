@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
   replaceFormActionsWithResources,
   type DataSource,
@@ -22,6 +21,7 @@ import {
   renderData,
   Variable,
 } from "@webstudio-is/template";
+import { uuidV5 } from "../organizeos-preset-ids";
 
 /**
  * OrganizeOS Websites 2.0: a native signup form preset (Phase 4d write side).
@@ -46,22 +46,9 @@ import {
  * provisioning.
  */
 
-// Fixed namespace for signup-form-derived ids (same namespace as the read
-// presets so all preset ids live in one deterministic family).
-const PRESET_NAMESPACE = "3f2a1b7c-8d5e-45a1-9b2c-6e0d1a2b3c4d";
-
-const uuidV5 = (name: string): string => {
-  const namespaceBytes = Buffer.from(PRESET_NAMESPACE.replace(/-/g, ""), "hex");
-  const bytes = createHash("sha1")
-    .update(namespaceBytes)
-    .update(Buffer.from(name, "utf8"))
-    .digest()
-    .subarray(0, 16);
-  bytes[6] = (bytes[6] & 0x0f) | 0x50;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = bytes.toString("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
-};
+// Signup-form ids are derived in the same namespace as the read presets
+// (shared/organizeos-preset-ids.ts), so all preset ids live in one
+// deterministic family.
 
 /** Input `name`s, in lockstep with the /v1/signups request schema. */
 export const SIGNUP_FORM_FIELD_NAMES = [
@@ -140,10 +127,10 @@ export type SignupFormData = {
 /**
  * Assemble the signup form: render the template with deterministic ids, convert
  * the form action into a server-side action resource, inject the org token
- * header as a literal. Pure: no I/O. Deterministic per
- * projectId, so re-seeding converges instead of duplicating.
+ * header as a literal. Pure: no I/O (async only because the id derivation is).
+ * Deterministic per projectId, so re-seeding converges instead of duplicating.
  */
-export const buildSignupFormData = ({
+export const buildSignupFormData = async ({
   projectId,
   apiBaseUrl,
   readToken,
@@ -151,17 +138,27 @@ export const buildSignupFormData = ({
   projectId: string;
   apiBaseUrl: string;
   readToken: string;
-}): SignupFormData => {
+}): Promise<SignupFormData> => {
   const base = apiBaseUrl.replace(/\/+$/, "");
-  const bodyId = uuidV5(`${projectId}:signup:body`);
+  const [bodyId, pageId] = await Promise.all([
+    uuidV5(`${projectId}:signup:body`),
+    uuidV5(`${projectId}:signup:page`),
+  ]);
+  const template = () => signupFormTemplate(`${base}/signups`, bodyId);
 
-  let counter = 0;
-  const generateId = () => uuidV5(`${projectId}:signup:${counter++}`);
-
-  const data = renderData(
-    signupFormTemplate(`${base}/signups`, bodyId),
-    generateId
+  // renderData takes a synchronous id generator, and uuidV5 is async. So count
+  // the ids one render asks for, derive them, and render again handing them
+  // out in order: both renders walk the same template the same way, so the nth
+  // id is uuidV5("{projectId}:signup:{n}"), exactly as before.
+  let count = 0;
+  renderData(template(), () => String(count++));
+  const ids = await Promise.all(
+    Array.from({ length: count }, (_, index) =>
+      uuidV5(`${projectId}:signup:${index}`)
+    )
   );
+  let counter = 0;
+  const data = renderData(template(), () => ids[counter++]);
 
   // Turn the form's string action into a server-side action resource.
   replaceFormActionsWithResources({
@@ -183,7 +180,7 @@ export const buildSignupFormData = ({
     }
   }
 
-  return { data, bodyId, pageId: uuidV5(`${projectId}:signup:page`) };
+  return { data, bodyId, pageId };
 };
 
 /** Replace entries sharing an incoming id, keep the rest, append the incoming. */
@@ -212,15 +209,15 @@ export type BuildContent = {
  * unstyled; the org styles it in the builder. Deterministic ids make this
  * idempotent (re-seed replaces in place).
  */
-export const mergeSignupFormIntoBuild = (
+export const mergeSignupFormIntoBuild = async (
   build: BuildContent,
   {
     projectId,
     apiBaseUrl,
     readToken,
   }: { projectId: string; apiBaseUrl: string; readToken: string }
-): BuildContent => {
-  const { data, bodyId, pageId } = buildSignupFormData({
+): Promise<BuildContent> => {
+  const { data, bodyId, pageId } = await buildSignupFormData({
     projectId,
     apiBaseUrl,
     readToken,
@@ -276,7 +273,7 @@ export const seedSignupFormPage = async (
     throw build.error;
   }
 
-  const merged = mergeSignupFormIntoBuild(
+  const merged = await mergeSignupFormIntoBuild(
     {
       instances: JSON.parse(build.data.instances ?? "[]") as Instance[],
       props: JSON.parse(build.data.props ?? "[]") as Prop[],
