@@ -4,6 +4,7 @@
 # to upstream (docs/ORGANIZEOS-FORK.md section 1).
 #
 # A published site installs @webstudio-is/sdk, react-sdk, sdk-components-react,
+# its Radix, React Router and Remix variants (the CLI templates list them),
 # image and wsauth from npm, at upstream's release PUBLISHED_RUNTIME_VERSION
 # (packages/cli/src/runtime-version.ts), never from this fork, while the builder
 # and the CLI run this fork's copies. Any difference splits what the builder
@@ -23,6 +24,9 @@ packages=(
   packages/sdk
   packages/react-sdk
   packages/sdk-components-react
+  packages/sdk-components-react-radix
+  packages/sdk-components-react-router
+  packages/sdk-components-react-remix
   packages/image
   packages/wsauth
 )
