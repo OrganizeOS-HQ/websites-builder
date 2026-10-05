@@ -109,6 +109,155 @@ export const buildOrgResourcePresets = ({
   return { dataSources, resources };
 };
 
+/**
+ * OrganizeOS's rule for a collection slug. The builder validates against the
+ * same rule, so it accepts exactly the slugs the API serves.
+ */
+export const COLLECTION_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
+export type CollectionPresetInput = {
+  slug: string;
+  name: string;
+  kind?: string;
+};
+
+/** What a collection preset copies from a static preset already in the build. */
+export type V1PresetSeed = {
+  /** The /v1 API base, i.e. a static preset's url minus its path. */
+  apiBase: string;
+  /** The Authorization header value: already an expression, copied verbatim. */
+  authHeaderExpression: string;
+};
+
+/**
+ * Read the API base and the Authorization header expression back out of a
+ * static /v1 preset (events, fundraisers, stats) in the build. A collections
+ * sync carries no token, and the preset Resources are the one place the org's
+ * token already lives, so the collection presets are seeded from them. Returns
+ * the first preset that yields both, or undefined when none does (a project
+ * provisioned without a read token, or presets the admin rewrote by hand).
+ */
+export const readV1PresetSeed = ({
+  projectId,
+  resources,
+}: {
+  projectId: string;
+  resources: Resource[];
+}): V1PresetSeed | undefined => {
+  for (const preset of V1_RESOURCE_PRESETS) {
+    const resourceId = uuidV5(`${projectId}:v1:${preset.key}:resource`);
+    const resource = resources.find((item) => item.id === resourceId);
+    if (resource === undefined) {
+      continue;
+    }
+
+    // The url is an expression. A literal is a JSON string; anything else the
+    // admin wrote (a template with a variable) is not something to copy from.
+    let url: unknown;
+    try {
+      url = JSON.parse(resource.url);
+    } catch {
+      continue;
+    }
+    if (typeof url !== "string" || url.endsWith(preset.path) === false) {
+      continue;
+    }
+    const apiBase = url.slice(0, -preset.path.length);
+    if (URL.canParse(apiBase) === false) {
+      continue;
+    }
+
+    const authHeader = resource.headers?.find(
+      (header) => header.name.toLowerCase() === "authorization"
+    );
+    if (authHeader === undefined || authHeader.value === "") {
+      continue;
+    }
+
+    return { apiBase, authHeaderExpression: authHeader.value };
+  }
+};
+
+/**
+ * Build one Resource + binding DataSource per public collection, so a
+ * collection's items can be bound in the builder's data panel like the static
+ * presets. Pure. Ids derive from (projectId, slug), so a rename keeps them and
+ * only updates the names.
+ *
+ * A slug listed twice keeps the last entry. A platform collection that a
+ * static preset already covers (events, fundraisers, stats) is skipped; a
+ * platform collection with any other slug is seeded like any other.
+ */
+export const buildCollectionResourcePresets = ({
+  projectId,
+  apiBase,
+  authHeaderExpression,
+  collections,
+}: {
+  projectId: string;
+  apiBase: string;
+  authHeaderExpression: string;
+  collections: CollectionPresetInput[];
+}): OrgResourcePresets => {
+  const base = apiBase.replace(/\/+$/, "");
+  const bySlug = new Map(
+    collections.map((collection) => [collection.slug, collection])
+  );
+
+  const resources: Resource[] = [];
+  const dataSources: DataSource[] = [];
+
+  for (const collection of bySlug.values()) {
+    const coveredByStaticPreset = V1_RESOURCE_PRESETS.some(
+      (preset) => preset.key === collection.slug
+    );
+    if (collection.kind === "platform" && coveredByStaticPreset) {
+      continue;
+    }
+
+    const resourceId = uuidV5(
+      `${projectId}:v1:collection:${collection.slug}:resource`
+    );
+    const bindingId = uuidV5(
+      `${projectId}:v1:collection:${collection.slug}:binding`
+    );
+
+    resources.push({
+      id: resourceId,
+      name: collection.name,
+      method: "get",
+      url: JSON.stringify(
+        `${base}/collections/${encodeURIComponent(collection.slug)}/items`
+      ),
+      headers: [{ name: "Authorization", value: authHeaderExpression }],
+    });
+
+    dataSources.push({
+      type: "resource",
+      id: bindingId,
+      name: collection.name,
+      resourceId,
+    });
+  }
+
+  return { dataSources, resources };
+};
+
+/**
+ * Replace existing entries that share an incoming id where they stand, and
+ * append the rest. Unlike mergeById this keeps the order of what is already
+ * there, so a re-sync does not reshuffle the builder's data panel.
+ */
+export const upsertById = <Type extends { id: string }>(
+  existing: Type[],
+  incoming: Type[]
+): Type[] => {
+  const incomingById = new Map(incoming.map((item) => [item.id, item]));
+  const merged = existing.map((item) => incomingById.get(item.id) ?? item);
+  const existingIds = new Set(existing.map((item) => item.id));
+  return [...merged, ...incoming.filter((item) => !existingIds.has(item.id))];
+};
+
 /** Replace any existing entries sharing an incoming id, keep the rest, append the incoming. */
 const mergeById = <Type extends { id: string }>(
   existing: Type[],
