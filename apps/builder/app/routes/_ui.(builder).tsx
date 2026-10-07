@@ -43,6 +43,10 @@ import {
   createPrivateNoStoreHeaders,
   privateNoStoreResponseHeaders,
 } from "~/services/cache-control.server";
+import {
+  frameProtectionHeaders,
+  withFrameAncestors,
+} from "~/shared/frame-protection";
 export { ErrorBoundary } from "~/shared/error/error-boundary";
 
 export const links = () => {
@@ -319,13 +323,14 @@ export const loader = async (loaderArgs: LoaderFunctionArgs) => {
  *
  */
 export const headers = ({ loaderHeaders }: HeadersArgs) => {
-  const contentSecurityPolicy = loaderHeaders.get("Content-Security-Policy");
-
   return {
     ...privateNoStoreResponseHeaders,
-    ...(contentSecurityPolicy === null
-      ? {}
-      : { "Content-Security-Policy": contentSecurityPolicy }),
+    ...frameProtectionHeaders,
+    // Keep the loader's frame-src and worker-src, and put frame-ancestors in
+    // the same policy: one Content-Security-Policy header, not two.
+    "Content-Security-Policy": withFrameAncestors(
+      loaderHeaders.get("Content-Security-Policy")
+    ),
   };
 };
 

@@ -154,6 +154,32 @@ remote page, `Set-Cookie` included, as a page of the builder. Keep the helper
 on upstream merges. `shared/cgi-routes.server.test.ts` fails if a route goes
 back to returning the remote response.
 
+### Framing
+
+No other page can frame the builder or the canvas: every document carries
+`Content-Security-Policy: frame-ancestors 'self'` and
+`X-Frame-Options: SAMEORIGIN` (for browsers without `frame-ancestors`). Session
+cookies are scoped to `.organizeos.org` and org sites live on
+`{org}.organizeos.org`, so an org's page is same-site with
+`builder.organizeos.org` and `p-<projectId>.builder.organizeos.org`, and could
+otherwise frame the builder with a signed-in admin's session and click through
+it. `'self'` fits everywhere: the canvas iframe is same-origin with the builder
+UI (`getCanvasUrl()` is the relative `/canvas`) and nothing else frames either.
+
+The values live in `apps/builder/app/shared/frame-protection.ts`. `root.tsx`
+sends them, and every route without its own `headers` export inherits them.
+Remix replaces the parent's headers when a route exports `headers` (it keeps
+only `Set-Cookie`), so a route that does must merge them in itself:
+`_ui.(builder).tsx` appends `frame-ancestors` to its `frame-src`/`worker-src`
+policy with `withFrameAncestors` (one policy, not two headers), and
+`_ui.dashboard.tsx` and `_ui.$.tsx` add `frameProtectionHeaders`.
+`shared/frame-protection-routes.server.test.ts` reads `app/routes` and fails
+for a route that exports `headers` without them. Resource routes (no component:
+`/cgi/*`, `/rest/*`, `/internal/*`, `/trpc/*`) return their own `Response`, are
+not documents, and are untouched; `/cgi/*` keeps its
+`Content-Security-Policy: sandbox`. Keep all of this on upstream merges: a new
+or changed `headers` export upstream is how it would be lost.
+
 ## 5. The OrganizeOS loop: SSO → build → Publish → back
 
 How an org admin's session is wired end to end, and which side owns each step. The OrganizeOS repo is `OrganizeOS-HQ/OrganizeOS` (`client/lib/websites2/*`, `client/lib/actions/websites/*`, `client/app/api/websites2/*`, `client/app/api/internal/websites2/*`).
@@ -187,7 +213,7 @@ No blocking browser gate. Upstream interrupted Firefox and Safari with a full-sc
 
 ## 7. OrganizeOS overlay (keep minimal for upstream merges)
 
-Changes confined to: env/config, the proprietary-package removal (this doc §2), auth/SSO + provisioning files (`services/auth-strategy/organizeos*`, `routes/internal.*`, `shared/db/provision.server.ts`, `shared/db/organizeos-*.server.ts`, `shared/db/collections-sync.server.ts`), the publish seam (`services/organizeos-publisher.server.ts`, `shared/db/publish-status.server.ts`, `publish-site.yml`), asset serving (`shared/asset-response.server.ts`, the three `routes/cgi.*` loaders, `asset-uploader`'s S3 client), branding (`shared/branding.ts`, `shared/organizeos-logo.tsx`), the OrganizeOS-only chrome behind `$organizeosSite` (`features/publish/organizeos-publish*.ts*`, small branches in `menu.tsx`, `topbar.tsx`, `publish.tsx`), and the forced CLI route-template patches for the reverse-proxy host/auth/cache. Avoid deep edits to shared component `.tsx`; isolate OrganizeOS code so `upstream main` can be merged with minimal conflict.
+Changes confined to: env/config, the proprietary-package removal (this doc §2), auth/SSO + provisioning files (`services/auth-strategy/organizeos*`, `routes/internal.*`, `shared/db/provision.server.ts`, `shared/db/organizeos-*.server.ts`, `shared/db/collections-sync.server.ts`), the publish seam (`services/organizeos-publisher.server.ts`, `shared/db/publish-status.server.ts`, `publish-site.yml`), asset serving (`shared/asset-response.server.ts`, the three `routes/cgi.*` loaders, `asset-uploader`'s S3 client), frame protection (`shared/frame-protection.ts` and the `headers` exports of `root.tsx`, `routes/_ui.(builder).tsx`, `routes/_ui.dashboard.tsx` and `routes/_ui.$.tsx`), branding (`shared/branding.ts`, `shared/organizeos-logo.tsx`), the OrganizeOS-only chrome behind `$organizeosSite` (`features/publish/organizeos-publish*.ts*`, small branches in `menu.tsx`, `topbar.tsx`, `publish.tsx`), and the forced CLI route-template patches for the reverse-proxy host/auth/cache. Avoid deep edits to shared component `.tsx`; isolate OrganizeOS code so `upstream main` can be merged with minimal conflict.
 
 ## 8. Published-site route template patches
 
