@@ -3,6 +3,10 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/server-runtime";
 import { preventCrossOriginCookie } from "~/services/no-cross-origin-cookie";
+import {
+  frameProtectionHeaders,
+  withFrameAncestors,
+} from "~/shared/frame-protection";
 export { ErrorBoundary } from "~/shared/error/error-boundary";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -66,7 +70,20 @@ export const headers: HeadersFunction = ({ errorHeaders, loaderHeaders }) => {
   if (cacheControl) {
     return {
       "Cache-Control": cacheControl,
+      ...frameProtectionHeaders,
     };
   }
-  return loaderHeaders;
+
+  // Copied, since these headers belong to Remix. This route's headers replace
+  // the root's, so the frame protection is added here.
+  const documentHeaders = new Headers(loaderHeaders);
+  documentHeaders.set(
+    "Content-Security-Policy",
+    withFrameAncestors(loaderHeaders.get("Content-Security-Policy"))
+  );
+  documentHeaders.set(
+    "X-Frame-Options",
+    frameProtectionHeaders["X-Frame-Options"]
+  );
+  return documentHeaders;
 };

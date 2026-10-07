@@ -27,6 +27,7 @@ import { preventCrossOriginCookie } from "~/services/no-cross-origin-cookie";
 import { allowedDestinations } from "~/services/destinations.server";
 import { redirect } from "~/services/no-store-redirect";
 import { privateNoStoreResponseHeaders } from "~/services/cache-control.server";
+import { frameProtectionHeaders } from "~/shared/frame-protection";
 export { ErrorBoundary } from "~/shared/error/error-boundary";
 import { findAuthenticatedUser } from "~/services/auth.server";
 import { createContext } from "~/shared/context.server";
@@ -45,7 +46,7 @@ export const meta = () => {
 };
 
 export const headers = () => {
-  return privateNoStoreResponseHeaders;
+  return { ...privateNoStoreResponseHeaders, ...frameProtectionHeaders };
 };
 
 const dashboardProjectCaller = createCallerFactory(dashboardProjectRouter);
